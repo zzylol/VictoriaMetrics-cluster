@@ -119,6 +119,8 @@ github.com/AzureAD/microsoft-authentication-library-for-go/apps/internal/options
 github.com/AzureAD/microsoft-authentication-library-for-go/apps/internal/shared
 github.com/AzureAD/microsoft-authentication-library-for-go/apps/internal/version
 github.com/AzureAD/microsoft-authentication-library-for-go/apps/public
+# github.com/DataDog/sketches-go v1.4.6
+## explicit; go 1.18
 # github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.25.0
 ## explicit; go 1.21
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp
@@ -128,6 +130,10 @@ github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric
 # github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.49.0
 ## explicit; go 1.22
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping
+# github.com/OneOfOne/xxhash v1.2.8
+## explicit; go 1.11
+# github.com/RoaringBitmap/roaring/v2 v2.3.4
+## explicit; go 1.14
 # github.com/VictoriaMetrics/easyproto v0.1.4
 ## explicit; go 1.18
 github.com/VictoriaMetrics/easyproto
@@ -323,6 +329,8 @@ github.com/bboreham/go-loser
 # github.com/beorn7/perks v1.0.1
 ## explicit; go 1.11
 github.com/beorn7/perks/quantile
+# github.com/bits-and-blooms/bitset v1.14.3
+## explicit; go 1.16
 # github.com/bmatcuk/doublestar/v4 v4.7.1
 ## explicit; go 1.16
 github.com/bmatcuk/doublestar/v4
@@ -330,6 +338,8 @@ github.com/bmatcuk/doublestar/v4
 ## explicit; go 1.18
 github.com/census-instrumentation/opencensus-proto/gen-go/resource/v1
 github.com/census-instrumentation/opencensus-proto/gen-go/trace/v1
+# github.com/cespare/xxhash v1.1.0
+## explicit
 # github.com/cespare/xxhash/v2 v2.3.0
 ## explicit; go 1.11
 github.com/cespare/xxhash/v2
@@ -539,6 +549,8 @@ github.com/modern-go/concurrent
 # github.com/modern-go/reflect2 v1.0.2
 ## explicit; go 1.12
 github.com/modern-go/reflect2
+# github.com/mschoch/smat v0.2.0
+## explicit; go 1.13
 # github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822
 ## explicit
 github.com/munnerz/goautoneg
@@ -640,6 +652,8 @@ github.com/rivo/uniseg
 # github.com/russross/blackfriday/v2 v2.1.0
 ## explicit
 github.com/russross/blackfriday/v2
+# github.com/spaolacci/murmur3 v1.1.0
+## explicit
 # github.com/stretchr/testify v1.10.0
 ## explicit; go 1.17
 github.com/stretchr/testify/assert
@@ -673,10 +687,20 @@ github.com/valyala/quicktemplate
 # github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1
 ## explicit; go 1.15
 github.com/xrash/smetrics
+# github.com/zzylol/VictoriaMetrics-sketches v0.1.0
+## explicit; go 1.22.5
+# github.com/zzylol/go-kll v0.0.0-20240604180517-e15a688e6ebe
+## explicit; go 1.22.3
 # github.com/zzylol/metricsql v0.1.1
 ## explicit; go 1.13
 github.com/zzylol/metricsql
 github.com/zzylol/metricsql/binaryop
+# github.com/zzylol/prometheus-sketch-VLDB/prometheus-sketches v0.0.0-20240903204742-c589c9446e48
+## explicit; go 1.22.3
+# github.com/zzylol/prometheus-sketch-VLDB/uniform-sampling-caching/prometheus v0.0.0-20240903204742-c589c9446e48
+## explicit; go 1.22.3
+# github.com/zzylol/promsketch v0.4.1
+## explicit; go 1.22.5
 # go.opencensus.io v0.24.0
 ## explicit; go 1.13
 go.opencensus.io
