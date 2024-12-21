@@ -26,6 +26,7 @@ var rollupFuncs = map[string]bool{
 	"descent_over_time":       true,
 	"distinct_over_time":      true,
 	"duration_over_time":      true,
+	"entropy_over_time":       true,
 	"first_over_time":         true,
 	"geomean_over_time":       true,
 	"histogram_over_time":     true,
@@ -43,6 +44,8 @@ var rollupFuncs = map[string]bool{
 	"lag":                     true,
 	"last_over_time":          true,
 	"lifetime":                true,
+	"l1_over_time":            true,
+	"l2_over_time":            true,
 	"mad_over_time":           true,
 	"max_over_time":           true,
 	"median_over_time":        true,
@@ -79,7 +82,7 @@ var rollupFuncs = map[string]bool{
 	"tfirst_over_time":        true,
 	// `timestamp` function must return timestamp for the last datapoint on the current window
 	// in order to properly handle offset and timestamps unaligned to the current step.
-	// See https://github.com/zzylol/VictoriaMetrics-cluster/issues/415 for details.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/415 for details.
 	"timestamp":              true,
 	"timestamp_with_name":    true,
 	"tlast_change_over_time": true,

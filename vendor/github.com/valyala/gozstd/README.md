@@ -74,7 +74,7 @@ env CC=arm-linux-gnueabi-gcc GOOS=linux GOARCH=arm CGO_ENABLED=1 go build ./main
 
 ### Who uses gozstd?
 
-* [VictoriaMetrics](https://github.com/zzylol/VictoriaMetrics-cluster)
+* [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics)
 
 ## FAQ
 

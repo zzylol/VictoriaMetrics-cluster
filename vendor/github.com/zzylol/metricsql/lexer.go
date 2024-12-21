@@ -575,25 +575,25 @@ func parseSingleDuration(s string, step int64) (float64, error) {
 	var mp float64
 	switch s[len(numPart):] {
 	case "ms":
-		mp = 1
+		mp = 1e-3
 	case "s":
-		mp = 1000
+		mp = 1
 	case "m":
-		mp = 60 * 1000
+		mp = 60
 	case "h":
-		mp = 60 * 60 * 1000
+		mp = 60 * 60
 	case "d":
-		mp = 24 * 60 * 60 * 1000
+		mp = 24 * 60 * 60
 	case "w":
-		mp = 7 * 24 * 60 * 60 * 1000
+		mp = 7 * 24 * 60 * 60
 	case "y":
-		mp = 365 * 24 * 60 * 60 * 1000
+		mp = 365 * 24 * 60 * 60
 	case "i":
-		mp = float64(step)
+		mp = float64(step) / 1e3
 	default:
 		return 0, fmt.Errorf("invalid duration suffix in %q", s)
 	}
-	return mp * f, nil
+	return mp * f * 1e3, nil
 }
 
 // scanDuration scans duration, which must start with positive num.
@@ -651,13 +651,13 @@ func scanSingleDuration(s string, canBeNegative bool) int {
 				return i + 2
 			case 'i', 'b':
 				// This is not a duration, but Mi or MB suffix.
-				// See parsePositiveNumber() and https://github.com/zzylol/VictoriaMetrics-cluster/issues/3664
+				// See parsePositiveNumber() and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3664
 				return -1
 			}
 		}
 		// Allow small m for durtion in minutes.
 		// Big M means 1e6.
-		// See parsePositiveNumber() and https://github.com/zzylol/VictoriaMetrics-cluster/issues/3664
+		// See parsePositiveNumber() and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3664
 		if s[i] == 'm' {
 			return i + 1
 		}
