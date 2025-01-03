@@ -13,8 +13,9 @@ import (
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/logger"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/memory"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/querytracer"
+	"github.com/zzylol/VictoriaMetrics-cluster/lib/sketch"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/storage"
-	"github.com/zzylol/VictoriaMetrics-cluster/lib/vmselectapi"
+	"github.com/zzylol/VictoriaMetrics-cluster/lib/vmselectsketchapi"
 )
 
 var (
@@ -44,11 +45,11 @@ var (
 )
 
 // NewVMSelectServer starts new server at the given addr, which serves vmselect requests from the given s.
-func NewVMSelectServer(addr string, s *storage.Storage) (*vmselectapi.Server, error) {
-	api := &vmstorageAPI{
+func NewVMSelectServer(addr string, s *sketch.Sketch) (*vmselectsketchapi.Server, error) {
+	api := &vmsketchAPI{
 		s: s,
 	}
-	limits := vmselectapi.Limits{
+	limits := vmselectsketchapi.Limits{
 		MaxLabelNames:                 *maxTagKeys,
 		MaxLabelValues:                *maxTagValues,
 		MaxTagValueSuffixes:           *maxTagValueSuffixesPerSearch,
@@ -57,15 +58,15 @@ func NewVMSelectServer(addr string, s *storage.Storage) (*vmselectapi.Server, er
 		MaxQueueDuration:              *maxQueueDuration,
 		MaxQueueDurationFlagName:      "search.maxQueueDuration",
 	}
-	return vmselectapi.NewServer(addr, api, limits, *disableRPCCompression)
+	return vmselectsketchapi.NewServer(addr, api, limits, *disableRPCCompression)
 }
 
-// vmstorageAPI impelements vmselectapi.API
-type vmstorageAPI struct {
-	s *storage.Storage
+// vmsketchAPI impelements vmselectsketchapi.API
+type vmsketchAPI struct {
+	s *sketch.Sketch
 }
 
-func (api *vmstorageAPI) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (vmselectapi.BlockIterator, error) {
+func (api *vmsketchAPI) InitSearch(qt *querytracer.Tracer, sq *sketch.SearchQuery, deadline uint64) (vmselectsketchapi.BlockIterator, error) {
 	tr := sq.GetTimeRange()
 	if err := checkTimeRange(api.s, tr); err != nil {
 		return nil, err
@@ -87,7 +88,7 @@ func (api *vmstorageAPI) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQu
 	return bi, nil
 }
 
-func (api *vmstorageAPI) SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) ([]string, error) {
+func (api *vmsketchAPI) SearchMetricNames(qt *querytracer.Tracer, sq *sketch.SearchQuery, deadline uint64) ([]string, error) {
 	tr := sq.GetTimeRange()
 	maxMetrics := getMaxMetrics(sq)
 	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
@@ -100,7 +101,7 @@ func (api *vmstorageAPI) SearchMetricNames(qt *querytracer.Tracer, sq *storage.S
 	return api.s.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline)
 }
 
-func (api *vmstorageAPI) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int, deadline uint64) ([]string, error) {
+func (api *vmsketchAPI) LabelValues(qt *querytracer.Tracer, sq *sketch.SearchQuery, labelName string, maxLabelValues int, deadline uint64) ([]string, error) {
 	tr := sq.GetTimeRange()
 	maxMetrics := getMaxMetrics(sq)
 	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
@@ -110,7 +111,7 @@ func (api *vmstorageAPI) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQ
 	return api.s.SearchLabelValuesWithFiltersOnTimeRange(qt, sq.AccountID, sq.ProjectID, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
 }
 
-func (api *vmstorageAPI) TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte,
+func (api *vmsketchAPI) TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte,
 	maxSuffixes int, deadline uint64) ([]string, error) {
 	suffixes, err := api.s.SearchTagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, deadline)
 	if err != nil {
@@ -123,7 +124,7 @@ func (api *vmstorageAPI) TagValueSuffixes(qt *querytracer.Tracer, accountID, pro
 	return suffixes, nil
 }
 
-func (api *vmstorageAPI) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int, deadline uint64) ([]string, error) {
+func (api *vmsketchAPI) LabelNames(qt *querytracer.Tracer, sq *sketch.SearchQuery, maxLabelNames int, deadline uint64) ([]string, error) {
 	tr := sq.GetTimeRange()
 	maxMetrics := getMaxMetrics(sq)
 	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
@@ -133,15 +134,15 @@ func (api *vmstorageAPI) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQu
 	return api.s.SearchLabelNamesWithFiltersOnTimeRange(qt, sq.AccountID, sq.ProjectID, tfss, tr, maxLabelNames, maxMetrics, deadline)
 }
 
-func (api *vmstorageAPI) SeriesCount(_ *querytracer.Tracer, accountID, projectID uint32, deadline uint64) (uint64, error) {
+func (api *vmsketchAPI) SeriesCount(_ *querytracer.Tracer, accountID, projectID uint32, deadline uint64) (uint64, error) {
 	return api.s.GetSeriesCount(accountID, projectID, deadline)
 }
 
-func (api *vmstorageAPI) Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline uint64) ([]string, error) {
+func (api *vmsketchAPI) Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline uint64) ([]string, error) {
 	return api.s.SearchTenants(qt, tr, deadline)
 }
 
-func (api *vmstorageAPI) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int, deadline uint64) (*storage.TSDBStatus, error) {
+func (api *vmsketchAPI) TSDBStatus(qt *querytracer.Tracer, sq *sketch.SearchQuery, focusLabel string, topN int, deadline uint64) (*storage.TSDBStatus, error) {
 	tr := sq.GetTimeRange()
 	maxMetrics := getMaxMetrics(sq)
 	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
@@ -152,7 +153,7 @@ func (api *vmstorageAPI) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQu
 	return api.s.GetTSDBStatus(qt, sq.AccountID, sq.ProjectID, tfss, date, focusLabel, topN, maxMetrics, deadline)
 }
 
-func (api *vmstorageAPI) DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (int, error) {
+func (api *vmsketchAPI) DeleteSeries(qt *querytracer.Tracer, sq *sketch.SearchQuery, deadline uint64) (int, error) {
 	tr := sq.GetTimeRange()
 	maxMetrics := getMaxMetrics(sq)
 	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
@@ -165,12 +166,12 @@ func (api *vmstorageAPI) DeleteSeries(qt *querytracer.Tracer, sq *storage.Search
 	return api.s.DeleteSeries(qt, tfss, maxMetrics)
 }
 
-func (api *vmstorageAPI) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, _ uint64) error {
+func (api *vmsketchAPI) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, _ uint64) error {
 	api.s.RegisterMetricNames(qt, mrs)
 	return nil
 }
 
-func (api *vmstorageAPI) setupTfss(qt *querytracer.Tracer, sq *storage.SearchQuery, tr storage.TimeRange, maxMetrics int, deadline uint64) ([]*storage.TagFilters, error) {
+func (api *vmsketchAPI) setupTfss(qt *querytracer.Tracer, sq *sketch.SearchQuery, tr storage.TimeRange, maxMetrics int, deadline uint64) ([]*storage.TagFilters, error) {
 	tfss := make([]*storage.TagFilters, 0, len(sq.TagFilterss))
 	accountID := sq.AccountID
 	projectID := sq.ProjectID
@@ -203,7 +204,7 @@ func (api *vmstorageAPI) setupTfss(qt *querytracer.Tracer, sq *storage.SearchQue
 	return tfss, nil
 }
 
-// blockIterator implements vmselectapi.BlockIterator
+// blockIterator implements vmselectsketchapi.BlockIterator
 type blockIterator struct {
 	sr storage.Search
 }
@@ -237,7 +238,7 @@ func (bi *blockIterator) Error() error {
 }
 
 // checkTimeRange returns true if the given tr is denied for querying.
-func checkTimeRange(s *storage.Storage, tr storage.TimeRange) error {
+func checkTimeRange(s *sketch.Sketch, tr sketch.TimeRange) error {
 	if !*denyQueriesOutsideRetention {
 		return nil
 	}
@@ -253,7 +254,7 @@ func checkTimeRange(s *storage.Storage, tr storage.TimeRange) error {
 	}
 }
 
-func getMaxMetrics(sq *storage.SearchQuery) int {
+func getMaxMetrics(sq *sketch.SearchQuery) int {
 	maxMetrics := sq.MaxMetrics
 	maxMetricsLimit := *maxUniqueTimeseries
 	if maxMetricsLimit <= 0 {

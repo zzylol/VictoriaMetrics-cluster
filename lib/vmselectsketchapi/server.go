@@ -19,7 +19,7 @@ import (
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/logger"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/netutil"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/querytracer"
-	"github.com/zzylol/VictoriaMetrics-cluster/lib/storage"
+	"github.com/zzylol/VictoriaMetrics-cluster/lib/sketch"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/timerpool"
 )
 
@@ -256,7 +256,7 @@ func (s *Server) processConn(bc *handshake.BufferedConn) error {
 			if isExpectedError(err) {
 				return nil
 			}
-			if errors.Is(err, storage.ErrDeadlineExceeded) {
+			if errors.Is(err, sketch.ErrDeadlineExceeded) {
 				return fmt.Errorf("cannot process vmselect request in %d seconds: %w", ctx.timeout, err)
 			}
 			return fmt.Errorf("cannot process vmselect request: %w", err)
@@ -292,8 +292,8 @@ type vmselectRequestCtx struct {
 	dataBuf []byte
 
 	qt *querytracer.Tracer
-	sq storage.SearchQuery
-	mb storage.MetricBlock
+	sq sketch.SearchQuery
+	mb sketch.MetricBlock
 
 	// timeout in seconds for the current request
 	timeout uint64
@@ -302,8 +302,8 @@ type vmselectRequestCtx struct {
 	deadline uint64
 }
 
-func (ctx *vmselectRequestCtx) readTimeRange() (storage.TimeRange, error) {
-	var tr storage.TimeRange
+func (ctx *vmselectRequestCtx) readTimeRange() (sketch.TimeRange, error) {
+	var tr sketch.TimeRange
 	minTimestamp, err := ctx.readUint64()
 	if err != nil {
 		return tr, fmt.Errorf("cannot read minTimestamp: %w", err)
@@ -445,7 +445,7 @@ func (ctx *vmselectRequestCtx) writeDataBufBytes() error {
 const maxErrorMessageSize = 64 * 1024
 
 func (ctx *vmselectRequestCtx) writeErrorMessage(err error) error {
-	if errors.Is(err, storage.ErrDeadlineExceeded) {
+	if errors.Is(err, sketch.ErrDeadlineExceeded) {
 		err = fmt.Errorf("cannot execute request in %d seconds: %w", ctx.timeout, err)
 	}
 	errMsg := err.Error()
@@ -597,7 +597,7 @@ func (s *Server) processRegisterMetricNames(ctx *vmselectRequestCtx) error {
 	if metricsCount > maxMetricNamesPerRequest {
 		return fmt.Errorf("too many metric names in a single request; got %d; mustn't exceed %d", metricsCount, maxMetricNamesPerRequest)
 	}
-	mrs := make([]storage.MetricRow, metricsCount)
+	mrs := make([]sketch.MetricRow, metricsCount)
 	for i := 0; i < int(metricsCount); i++ {
 		if err := ctx.readDataBufBytes(maxMetricNameRawSize); err != nil {
 			return fmt.Errorf("cannot read metricNameRaw: %w", err)
@@ -938,7 +938,7 @@ func (s *Server) processTenants(ctx *vmselectRequestCtx) error {
 	return nil
 }
 
-func writeTSDBStatus(ctx *vmselectRequestCtx, status *storage.TSDBStatus) error {
+func writeTSDBStatus(ctx *vmselectRequestCtx, status *sketch.TSDBStatus) error {
 	if err := ctx.writeUint64(status.TotalSeries); err != nil {
 		return fmt.Errorf("cannot write totalSeries to vmselect: %w", err)
 	}
@@ -963,7 +963,7 @@ func writeTSDBStatus(ctx *vmselectRequestCtx, status *storage.TSDBStatus) error 
 	return nil
 }
 
-func writeTopHeapEntries(ctx *vmselectRequestCtx, a []storage.TopHeapEntry) error {
+func writeTopHeapEntries(ctx *vmselectRequestCtx, a []sketch.TopHeapEntry) error {
 	if err := ctx.writeUint64(uint64(len(a))); err != nil {
 		return fmt.Errorf("cannot write topHeapEntries size: %w", err)
 	}
