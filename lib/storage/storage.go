@@ -15,6 +15,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/fastcache"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/backup/backupnames"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/bloomfilter"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/bytesutil"
@@ -29,7 +30,6 @@ import (
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/timeutil"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/uint64set"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/workingsetcache"
-	"github.com/VictoriaMetrics/fastcache"
 	"github.com/zzylol/metricsql"
 )
 
