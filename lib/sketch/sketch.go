@@ -135,8 +135,8 @@ type Sketch struct {
 }
 
 // GetTSDBStatus returns TSDB status data for /api/v1/status/tsdb
-func (s *Sketch) GetSketchCacheStatus(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*SketchCacheStatus, error) {
-	return s.sketchCache.getSketchCacheStatus(qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics, deadline)
+func (s *Sketch) GetSketchCacheStatus(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, date uint64, focusLabel string, maxMetrics int, deadline uint64) (*SketchCacheStatus, error) {
+	return s.sketchCache.getSketchCacheStatus(qt, accountID, projectID, tfss, date, focusLabel, maxMetrics, deadline)
 }
 
 // GetSeriesCount returns the approximate number of unique time series for the given (accountID, projectID).

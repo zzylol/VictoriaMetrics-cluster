@@ -860,7 +860,7 @@ func (sn *sketchNode) processSearchQueryOnConn(bc *handshake.BufferedConn, reque
 
 	// Read response. It may consist of multiple MetricBlocks.
 	blocksRead := 0
-	var mb sketch.MetricBlock
+	var mb sketch.MetricBlock // TODO: What to return from VMSketch?
 	for {
 		buf, err = readBytes(buf[:0], bc, maxMetricBlockSize)
 		if err != nil {
