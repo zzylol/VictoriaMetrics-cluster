@@ -10,6 +10,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/cespare/xxhash/v2"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/bytesutil"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/consts"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/encoding"
@@ -21,8 +23,6 @@ import (
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/storage"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/timerpool"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/timeutil"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/cespare/xxhash/v2"
 )
 
 var (
@@ -38,6 +38,12 @@ var (
 		"Lower values speed up re-rerouting recovery when some of vmstorage nodes become unavailable because of networking issues. "+
 		"Read more about TCP_USER_TIMEOUT at https://blog.cloudflare.com/when-tcp-sockets-refuse-to-die/ . "+
 		"See also -vmstorageDialTimeout")
+	vmsketchDialTimeout = flag.Duration("vmsketchDialTimeout", 2*time.Second, "Timeout for establishing RPC connections from vminsert to vmsketch. "+
+		"See also -vmsketchUserTimeout")
+	vmsketchUserTimeout = flag.Duration("vmsketchUserTimeout", 2*time.Second, "Network timeout for RPC connections from vminsert to vmsketch (Linux only). "+
+		"Lower values speed up re-rerouting recovery when some of vmsketch nodes become unavailable because of networking issues. "+
+		"Read more about TCP_USER_TIMEOUT at https://blog.cloudflare.com/when-tcp-sockets-refuse-to-die/ . "+
+		"See also -vmsketchDialTimeout")
 	disableReroutingOnUnavailable = flag.Bool("disableReroutingOnUnavailable", false, "Whether to disable re-routing when some of vmstorage nodes are unavailable. "+
 		"Disabled re-routing stops ingestion when some storage nodes are unavailable. "+
 		"On the other side, disabled re-routing minimizes the number of active time series in the cluster "+
@@ -507,12 +513,17 @@ func setStorageNodesBucket(snb *storageNodesBucket) {
 func Init(addrs []string, hashSeed uint64) {
 	snb := initStorageNodes(addrs, hashSeed)
 	setStorageNodesBucket(snb)
+	sknb := initSketchNodes(addrs, hashSeed)
+	setSketchNodesBucket(sknb)
 }
 
 // MustStop stops netstorage.
 func MustStop() {
 	snb := getStorageNodesBucket()
 	mustStopStorageNodes(snb)
+
+	sknb := getSketchNodesBucket()
+	mustStopSketchNodes(sknb)
 }
 
 func initStorageNodes(addrs []string, hashSeed uint64) *storageNodesBucket {

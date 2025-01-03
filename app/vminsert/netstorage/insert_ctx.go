@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/cespare/xxhash/v2"
 	"github.com/zzylol/VictoriaMetrics-cluster/app/vminsert/relabel"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/auth"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/bytesutil"
@@ -13,7 +14,6 @@ import (
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/prompbmarshal"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/storage"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/timeserieslimits"
-	"github.com/cespare/xxhash/v2"
 )
 
 // InsertCtx is a generic context for inserting data.
@@ -21,6 +21,7 @@ import (
 // InsertCtx.Reset must be called before the first usage.
 type InsertCtx struct {
 	snb           *storageNodesBucket
+	sknb          *storageNodesBucket
 	Labels        sortedLabels
 	MetricNameBuf []byte
 

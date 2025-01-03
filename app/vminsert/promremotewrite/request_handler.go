@@ -3,6 +3,7 @@ package promremotewrite
 import (
 	"net/http"
 
+	"github.com/VictoriaMetrics/metrics"
 	"github.com/zzylol/VictoriaMetrics-cluster/app/vminsert/netstorage"
 	"github.com/zzylol/VictoriaMetrics-cluster/app/vminsert/relabel"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/auth"
@@ -12,7 +13,6 @@ import (
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/protoparser/promremotewrite/stream"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/storage"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/tenantmetrics"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -58,6 +58,7 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 			continue
 		}
 		atLocal := ctx.GetLocalAuthToken(at)
+		sketchNodeIdx := ctx.GetSketchNodeIdx(atLocal, ctx.Labels)
 		storageNodeIdx := ctx.GetStorageNodeIdx(atLocal, ctx.Labels)
 		ctx.MetricNameBuf = ctx.MetricNameBuf[:0]
 		samples := ts.Samples
@@ -67,6 +68,9 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 				ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ctx.Labels)
 			}
 			if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, r.Timestamp, r.Value); err != nil {
+				return err
+			}
+			if err := ctx.WriteDataPointExtSketch(sketchNodeIdx, ctx.MetricNameBuf, r.Timestamp, r.Value); err != nil {
 				return err
 			}
 		}
