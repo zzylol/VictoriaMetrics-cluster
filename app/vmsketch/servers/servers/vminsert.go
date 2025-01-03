@@ -17,8 +17,8 @@ import (
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/logger"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/netutil"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/protoparser/clusternative/stream"
+	"github.com/zzylol/VictoriaMetrics-cluster/lib/sketch"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/storage"
-	"github.com/zzylol/promsketch"
 )
 
 var (
@@ -33,7 +33,7 @@ var (
 // VMInsertServer processes connections from vminsert.
 type VMInsertServer struct {
 	// storage is a pointer to the underlying storage.
-	sketchCache *promsketch.VMSketches
+	sketch *sketch.Sketch
 
 	// ln is the listener for incoming connections to the server.
 	ln net.Listener
@@ -50,7 +50,7 @@ type VMInsertServer struct {
 }
 
 // NewVMInsertServer starts VMInsertServer at the given addr serving the given storage.
-func NewVMInsertServer(addr string, sketchCache *promsketch.VMSketches) (*VMInsertServer, error) {
+func NewVMInsertServer(addr string, sketch *sketch.Sketch) (*VMInsertServer, error) {
 	ln, err := netutil.NewTCPListener("vminsert", addr, false, nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to listen vminsertAddr %s: %w", addr, err)
@@ -59,8 +59,8 @@ func NewVMInsertServer(addr string, sketchCache *promsketch.VMSketches) (*VMInse
 		return nil, fmt.Errorf("invalid -precisionBits: %w", err)
 	}
 	s := &VMInsertServer{
-		sketchCache: sketchCache,
-		ln:          ln,
+		sketch: sketch,
+		ln:     ln,
 	}
 	s.connsMap.Init("vminsert")
 	s.wg.Add(1)
@@ -124,9 +124,9 @@ func (s *VMInsertServer) run() {
 			logger.Infof("processing vminsert conn from %s", c.RemoteAddr())
 			err = stream.Parse(bc, func(rows []storage.MetricRow) error {
 				vminsertMetricsRead.Add(len(rows))
-				s.sketchCache.AddRows(rows, uint8(*precisionBits))
+				s.sketch.AddRows(rows)
 				return nil
-			}, s.sketchCache.IsReadOnly)
+			}, s.sketch.IsReadOnly)
 			if err != nil {
 				if s.isStopping() {
 					return
