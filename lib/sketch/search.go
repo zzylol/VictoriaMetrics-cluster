@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/encoding"
+	"github.com/zzylol/VictoriaMetrics-cluster/lib/slicesutil"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/stringsutil"
 )
 
@@ -147,4 +148,134 @@ func tagFiltersToString(tfs []TagFilter) string {
 		a[i] = tf.String()
 	}
 	return "{" + strings.Join(a, ",") + "}"
+}
+
+// GetTimeRange returns time range for the given sq.
+func (sq *SearchQuery) GetTimeRange() TimeRange {
+	return TimeRange{
+		MinTimestamp: sq.MinTimestamp,
+		MaxTimestamp: sq.MaxTimestamp,
+	}
+}
+
+// String returns string representation of the search query.
+func (sq *SearchQuery) String() string {
+	a := make([]string, len(sq.TagFilterss))
+	for i, tfs := range sq.TagFilterss {
+		a[i] = tagFiltersToString(tfs)
+	}
+	start := TimestampToHumanReadableFormat(sq.MinTimestamp)
+	end := TimestampToHumanReadableFormat(sq.MaxTimestamp)
+	if !sq.IsMultiTenant {
+		return fmt.Sprintf("accountID=%d, projectID=%d, filters=%s, timeRange=[%s..%s]", sq.AccountID, sq.ProjectID, a, start, end)
+	}
+
+	tts := make([]string, len(sq.TenantTokens))
+	for i, tt := range sq.TenantTokens {
+		tts[i] = tt.String()
+	}
+	return fmt.Sprintf("tenants=[%s], filters=%s, timeRange=[%s..%s]", strings.Join(tts, ","), a, start, end)
+}
+
+// MarshaWithoutTenant appends marshaled sq without AccountID/ProjectID to dst and returns the result.
+// It is expected that TenantToken is already marshaled to dst.
+func (sq *SearchQuery) MarshaWithoutTenant(dst []byte) []byte {
+	dst = encoding.MarshalVarInt64(dst, sq.MinTimestamp)
+	dst = encoding.MarshalVarInt64(dst, sq.MaxTimestamp)
+	dst = encoding.MarshalVarUint64(dst, uint64(len(sq.TagFilterss)))
+	for _, tagFilters := range sq.TagFilterss {
+		dst = encoding.MarshalVarUint64(dst, uint64(len(tagFilters)))
+		for i := range tagFilters {
+			dst = tagFilters[i].Marshal(dst)
+		}
+	}
+	dst = encoding.MarshalUint32(dst, uint32(sq.MaxMetrics))
+	return dst
+}
+
+// Unmarshal unmarshals sq from src and returns the tail.
+func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
+	if len(src) < 4 {
+		return src, fmt.Errorf("cannot unmarshal AccountID: too short src len: %d; must be at least %d bytes", len(src), 4)
+	}
+	sq.AccountID = encoding.UnmarshalUint32(src)
+	src = src[4:]
+
+	if len(src) < 4 {
+		return src, fmt.Errorf("cannot unmarshal ProjectID: too short src len: %d; must be at least %d bytes", len(src), 4)
+	}
+	sq.ProjectID = encoding.UnmarshalUint32(src)
+	src = src[4:]
+
+	sq.TenantTokens = []TenantToken{{AccountID: sq.AccountID, ProjectID: sq.ProjectID}}
+	minTs, nSize := encoding.UnmarshalVarInt64(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal MinTimestamp from varint")
+	}
+	src = src[nSize:]
+	sq.MinTimestamp = minTs
+
+	maxTs, nSize := encoding.UnmarshalVarInt64(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal MaxTimestamp from varint")
+	}
+	src = src[nSize:]
+	sq.MaxTimestamp = maxTs
+
+	tfssCount, nSize := encoding.UnmarshalVarUint64(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal the count of TagFilterss from uvarint")
+	}
+	src = src[nSize:]
+	sq.TagFilterss = slicesutil.SetLength(sq.TagFilterss, int(tfssCount))
+
+	for i := 0; i < int(tfssCount); i++ {
+		tfsCount, nSize := encoding.UnmarshalVarUint64(src)
+		if nSize <= 0 {
+			return src, fmt.Errorf("cannot unmarshal the count of TagFilters from uvarint")
+		}
+		src = src[nSize:]
+
+		tagFilters := sq.TagFilterss[i]
+		tagFilters = slicesutil.SetLength(tagFilters, int(tfsCount))
+		for j := 0; j < int(tfsCount); j++ {
+			tail, err := tagFilters[j].Unmarshal(src)
+			if err != nil {
+				return tail, fmt.Errorf("cannot unmarshal TagFilter #%d: %w", j, err)
+			}
+			src = tail
+		}
+		sq.TagFilterss[i] = tagFilters
+	}
+
+	if len(src) < 4 {
+		return src, fmt.Errorf("cannot unmarshal MaxMetrics: too short src len: %d; must be at least %d bytes", len(src), 4)
+	}
+	sq.MaxMetrics = int(encoding.UnmarshalUint32(src))
+	src = src[4:]
+
+	return src, nil
+}
+
+// NewSearchQuery creates new search query for the given args.
+func NewSearchQuery(accountID, projectID uint32, start, end int64, tagFilterss [][]TagFilter, maxMetrics int) *SearchQuery {
+	if start < 0 {
+		// This is needed for https://github.com/zzylol/VictoriaMetrics-cluster/issues/5553
+		start = 0
+	}
+	if maxMetrics <= 0 {
+		maxMetrics = 2e9
+	}
+	return &SearchQuery{
+		MinTimestamp: start,
+		MaxTimestamp: end,
+		TagFilterss:  tagFilterss,
+		MaxMetrics:   maxMetrics,
+		TenantTokens: []TenantToken{
+			{
+				AccountID: accountID,
+				ProjectID: projectID,
+			},
+		},
+	}
 }

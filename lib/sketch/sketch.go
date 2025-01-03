@@ -138,3 +138,10 @@ type Sketch struct {
 func (s *Sketch) GetSketchCacheStatus(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*SketchCacheStatus, error) {
 	return s.sketchCache.getSketchCacheStatus(qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics, deadline)
 }
+
+// GetSeriesCount returns the approximate number of unique time series for the given (accountID, projectID).
+//
+// It includes the deleted series too and may count the same series
+func (s *Sketch) GetSeriesCount(accountID, projectID uint32, deadline uint64) (uint64, error) {
+	return s.sketchCache.GetSeriesCount(accountID, projectID, deadline)
+}
