@@ -1,11 +1,15 @@
 package sketch
 
 import (
-	"fmt"
-	"strings"
+	"os"
+	"sync"
+	"sync/atomic"
 
-	"github.com/zzylol/VictoriaMetrics-cluster/lib/encoding"
-	"github.com/zzylol/VictoriaMetrics-cluster/lib/stringsutil"
+	"github.com/zzylol/VictoriaMetrics-cluster/lib/bloomfilter"
+	"github.com/zzylol/VictoriaMetrics-cluster/lib/querytracer"
+	"github.com/zzylol/VictoriaMetrics-cluster/lib/uint64set"
+	"github.com/zzylol/VictoriaMetrics-cluster/lib/workingsetcache"
+	"github.com/zzylol/promsketch"
 )
 
 type SketchCacheStatus struct {
@@ -13,143 +17,124 @@ type SketchCacheStatus struct {
 	TotalLabelValuePairs uint64
 }
 
-// TenantToken represents a tenant (accountID, projectID) pair.
-type TenantToken struct {
-	AccountID uint32
-	ProjectID uint32
+// Sketch represents PromSketch instance.
+type Sketch struct {
+	rowsReceivedTotal atomic.Uint64
+	rowsAddedTotal    atomic.Uint64
+
+	tooSmallTimestampRows atomic.Uint64
+	tooBigTimestampRows   atomic.Uint64
+	invalidRawMetricNames atomic.Uint64
+
+	timeseriesRepopulated  atomic.Uint64
+	timeseriesPreCreated   atomic.Uint64
+	newTimeseriesCreated   atomic.Uint64
+	slowRowInserts         atomic.Uint64
+	slowPerDayIndexInserts atomic.Uint64
+	slowMetricNameLoads    atomic.Uint64
+
+	hourlySeriesLimitRowsDropped atomic.Uint64
+	dailySeriesLimitRowsDropped  atomic.Uint64
+
+	// nextRotationTimestamp is a timestamp in seconds of the next indexdb rotation.
+	//
+	// It is used for gradual pre-population of the idbNext during the last hour before the indexdb rotation.
+	// in order to reduce spikes in CPU and disk IO usage just after the rotiation.
+	// See https://github.com/zzylol/VictoriaMetrics-cluster/issues/1401
+	nextRotationTimestamp atomic.Int64
+
+	path           string
+	cachePath      string
+	retentionMsecs int64
+
+	// lock file for exclusive access to the storage on the given path.
+	flockF *os.File
+
+	// idbCurr contains the currently used indexdb.
+	sketchCache *promsketch.VMSketches
+
+	// Series cardinality limiters.
+	hourlySeriesLimiter *bloomfilter.Limiter
+	dailySeriesLimiter  *bloomfilter.Limiter
+
+	// tsidCache is MetricName -> TSID cache.
+	tsidCache *workingsetcache.Cache
+
+	// metricIDCache is MetricID -> TSID cache.
+	metricIDCache *workingsetcache.Cache
+
+	// metricNameCache is MetricID -> MetricName cache.
+	metricNameCache *workingsetcache.Cache
+
+	// dateMetricIDCache is (generation, Date, MetricID) cache, where generation is the indexdb generation.
+	// See generationTSID for details.
+	dateMetricIDCache *dateMetricIDCache
+
+	// Fast cache for MetricID values occurred during the current hour.
+	currHourMetricIDs atomic.Pointer[hourMetricIDs]
+
+	// Fast cache for MetricID values occurred during the previous hour.
+	prevHourMetricIDs atomic.Pointer[hourMetricIDs]
+
+	// Fast cache for pre-populating per-day inverted index for the next day.
+	// This is needed in order to remove CPU usage spikes at 00:00 UTC
+	// due to creation of per-day inverted index for active time series.
+	// See https://github.com/zzylol/VictoriaMetrics-cluster/issues/430 for details.
+	nextDayMetricIDs atomic.Pointer[byDateMetricIDEntry]
+
+	// Pending MetricID values to be added to currHourMetricIDs.
+	pendingHourEntriesLock sync.Mutex
+	pendingHourEntries     []pendingHourMetricIDEntry
+
+	// Pending MetricIDs to be added to nextDayMetricIDs.
+	pendingNextDayMetricIDsLock sync.Mutex
+	pendingNextDayMetricIDs     *uint64set.Set
+
+	// prefetchedMetricIDs contains metricIDs for pre-fetched metricNames in the prefetchMetricNames function.
+	prefetchedMetricIDsLock sync.Mutex
+	prefetchedMetricIDs     *uint64set.Set
+
+	// prefetchedMetricIDsDeadline is used for periodic reset of prefetchedMetricIDs in order to limit its size under high rate of creating new series.
+	prefetchedMetricIDsDeadline atomic.Uint64
+
+	stopCh chan struct{}
+
+	currHourMetricIDsUpdaterWG sync.WaitGroup
+	nextDayMetricIDsUpdaterWG  sync.WaitGroup
+	retentionWatcherWG         sync.WaitGroup
+	freeDiskSpaceWatcherWG     sync.WaitGroup
+
+	// The snapshotLock prevents from concurrent creation of snapshots,
+	// since this may result in snapshots without recently added data,
+	// which may be in the process of flushing to disk by concurrently running
+	// snapshot process.
+	snapshotLock sync.Mutex
+
+	// The minimum timestamp when composite index search can be used.
+	minTimestampForCompositeIndex int64
+
+	// An inmemory set of deleted metricIDs.
+	//
+	// It is safe to keep the set in memory even for big number of deleted
+	// metricIDs, since it usually requires 1 bit per deleted metricID.
+	deletedMetricIDs           atomic.Pointer[uint64set.Set]
+	deletedMetricIDsUpdateLock sync.Mutex
+
+	// missingMetricIDs maps metricID to the deadline in unix timestamp seconds
+	// after which all the indexdb entries for the given metricID
+	// must be deleted if index entry isn't found by the given metricID.
+	// This is used inside searchMetricNameWithCache() and getTSIDsFromMetricIDs()
+	// for detecting permanently missing metricID->metricName/TSID entries.
+	// See https://github.com/zzylol/VictoriaMetrics-cluster/issues/5959
+	missingMetricIDsLock          sync.Mutex
+	missingMetricIDs              map[uint64]uint64
+	missingMetricIDsResetDeadline uint64
+
+	// isReadOnly is set to true when the storage is in read-only mode.
+	isReadOnly atomic.Bool
 }
 
-// String returns string representation of t.
-func (t *TenantToken) String() string {
-	return fmt.Sprintf("{accountID=%d, projectID=%d}", t.AccountID, t.ProjectID)
-}
-
-// Marshal appends marshaled t to dst and returns the result.
-func (t *TenantToken) Marshal(dst []byte) []byte {
-	dst = encoding.MarshalUint32(dst, t.AccountID)
-	dst = encoding.MarshalUint32(dst, t.ProjectID)
-	return dst
-}
-
-// TagFilter represents a single tag filter from SearchQuery.
-type TagFilter struct {
-	Key        []byte
-	Value      []byte
-	IsNegative bool
-	IsRegexp   bool
-}
-
-// String returns string representation of tf.
-func (tf *TagFilter) String() string {
-	op := tf.getOp()
-	value := stringsutil.LimitStringLen(string(tf.Value), 60)
-	if len(tf.Key) == 0 {
-		return fmt.Sprintf("__name__%s%q", op, value)
-	}
-	return fmt.Sprintf("%s%s%q", tf.Key, op, value)
-}
-
-func (tf *TagFilter) getOp() string {
-	if tf.IsNegative {
-		if tf.IsRegexp {
-			return "!~"
-		}
-		return "!="
-	}
-	if tf.IsRegexp {
-		return "=~"
-	}
-	return "="
-}
-
-// Marshal appends marshaled tf to dst and returns the result.
-func (tf *TagFilter) Marshal(dst []byte) []byte {
-	dst = encoding.MarshalBytes(dst, tf.Key)
-	dst = encoding.MarshalBytes(dst, tf.Value)
-
-	x := 0
-	if tf.IsNegative {
-		x = 2
-	}
-	if tf.IsRegexp {
-		x |= 1
-	}
-	dst = append(dst, byte(x))
-
-	return dst
-}
-
-// Unmarshal unmarshals tf from src and returns the tail.
-func (tf *TagFilter) Unmarshal(src []byte) ([]byte, error) {
-	k, nSize := encoding.UnmarshalBytes(src)
-	if nSize <= 0 {
-		return src, fmt.Errorf("cannot unmarshal Key")
-	}
-	src = src[nSize:]
-	tf.Key = append(tf.Key[:0], k...)
-
-	v, nSize := encoding.UnmarshalBytes(src)
-	if nSize <= 0 {
-		return src, fmt.Errorf("cannot unmarshal Value")
-	}
-	src = src[nSize:]
-	tf.Value = append(tf.Value[:0], v...)
-
-	if len(src) < 1 {
-		return src, fmt.Errorf("cannot unmarshal IsNegative+IsRegexp from empty src")
-	}
-	x := src[0]
-	switch x {
-	case 0:
-		tf.IsNegative = false
-		tf.IsRegexp = false
-	case 1:
-		tf.IsNegative = false
-		tf.IsRegexp = true
-	case 2:
-		tf.IsNegative = true
-		tf.IsRegexp = false
-	case 3:
-		tf.IsNegative = true
-		tf.IsRegexp = true
-	default:
-		return src, fmt.Errorf("unexpected value for IsNegative+IsRegexp: %d; must be in the range [0..3]", x)
-	}
-	src = src[1:]
-
-	return src, nil
-}
-
-// SearchQuery is used for sending search queries to from vmselect to vmsketch.
-type SearchQuery struct {
-	AccountID uint32
-	ProjectID uint32
-
-	// TenantTokens and IsMultiTenant is artificial fields
-	// they're only exist at runtime and cannot be transferred
-	// via network calls for keeping communication protocol compatibility
-	// TODO:@f41gh7 introduce breaking change to the protocol later
-	// and use TenantTokens instead of AccountID and ProjectID
-	TenantTokens  []TenantToken
-	IsMultiTenant bool
-
-	// The time range for searching time series
-	MinTimestamp int64
-	MaxTimestamp int64
-
-	// Tag filters for the search query
-	TagFilterss [][]TagFilter
-
-	FuncName string
-
-	// The maximum number of time series the search query can return.
-	MaxMetrics int
-}
-
-func tagFiltersToString(tfs []TagFilter) string {
-	a := make([]string, len(tfs))
-	for i, tf := range tfs {
-		a[i] = tf.String()
-	}
-	return "{" + strings.Join(a, ",") + "}"
+// GetTSDBStatus returns TSDB status data for /api/v1/status/tsdb
+func (s *Sketch) GetSketchCacheStatus(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*SketchCacheStatus, error) {
+	return s.sketchCache.getSketchCacheStatus(qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics, deadline)
 }
