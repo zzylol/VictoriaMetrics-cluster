@@ -18,8 +18,8 @@ import (
 	"unsafe"
 
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/zzylol/metricsql"
 	"github.com/cespare/xxhash/v2"
+	"github.com/zzylol/metricsql"
 
 	"github.com/zzylol/VictoriaMetrics-cluster/app/vmselect/searchutils"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/bytesutil"
@@ -108,6 +108,14 @@ func closeTmpBlockFiles(tbfs []*tmpBlocksFile) {
 	for _, tbf := range tbfs {
 		putTmpBlocksFile(tbf)
 	}
+}
+
+func (rss *Results) GetMetricNames() []string {
+	mns := make([]string, 0)
+	for i := range rss.packedTimeseries {
+		mns = append(mns, rss.packedTimeseries[i].metricName)
+	}
+	return mns
 }
 
 type timeseriesWork struct {
@@ -3111,12 +3119,18 @@ func getStorageNodes() []*storageNode {
 func Init(addrs []string) {
 	snb := initStorageNodes(addrs)
 	setStorageNodesBucket(snb)
+
+	sknb := initSketchNodes(addrs)
+	setSketchNodesBucket(sknb)
 }
 
 // MustStop gracefully stops netstorage.
 func MustStop() {
 	snb := getStorageNodesBucket()
 	mustStopStorageNodes(snb)
+
+	sknb := getSketchNodesBucket()
+	mustStopSketchNodes(sknb)
 }
 
 func initStorageNodes(addrs []string) *storageNodesBucket {

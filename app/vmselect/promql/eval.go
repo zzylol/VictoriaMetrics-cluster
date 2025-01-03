@@ -1704,6 +1704,9 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 		rollupResultCacheV.PutSeries(qt, ec, expr, window, rvs)
 	}
 	return rvs, nil
+
+func copy_ts_results(tss []*netstorage.Timeseries) (ts_results []*timeseries) {
+	return nil
 }
 
 // evalRollupFuncNoCache calculates the given rf with the given lookbehind window.
@@ -1749,10 +1752,14 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	} else {
 		sq = storage.NewSearchQuery(ec.AuthTokens[0].AccountID, ec.AuthTokens[0].ProjectID, minTimestamp, ec.End, tfss, ec.MaxSeries)
 	}
+
+	start := time.Now()
 	rss, isPartial, err := netstorage.ProcessSearchQuery(qt, ec.DenyPartialResponse, sq, ec.Deadline)
 	if err != nil {
 		return nil, err
 	}
+	since := time.Since(start)
+
 	ec.updateIsPartialResponse(isPartial)
 	rssLen := rss.Len()
 	if rssLen == 0 {
@@ -1760,6 +1767,37 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		return nil, nil
 	}
 	ec.QueryStats.addSeriesFetched(rssLen)
+
+	mns := rss.GetMetricNames()
+
+	fmt.Println("VM ProcessSearchQuery Time:", since.Seconds(), "s")
+	sketch.NewSearchQuery()
+	ts_results, isCovered, err := netstorage.SearchAndEvalSketchCache(minTimestamp, ec.End, mns, funcName, ec.MaxSeries, ec.Deadline)
+	if err == nil && isCovered {
+		output_ts_results := copy_ts_results(ts_results)
+		return output_ts_results, err
+	}
+
+	/*
+		scs, isCovered, err := netstorage.SearchSketchTimeSeriesCoverage(minTimestamp, ec.End, mns, funcNames, ec.MaxSeries, ec.Deadline)
+		fmt.Println("isCovered=", isCovered)
+		if isCovered == true {
+			fmt.Println("VM ProcessSearchQuery time:", since.Seconds(), "s")
+		} else {
+			if window != 0 {
+				fmt.Println(funcNames, minTimestamp, ec.End, err)
+			}
+		}
+
+		if err == nil && isCovered {
+			keepMetricNames := getKeepMetricNames(expr)
+			start := time.Now()
+			ts_results, err := netstorage.evalRollupSketchCache(qt, funcName, keepMetricNames, args, scs, rcs, sharedTimestamps)
+			since := time.Since(start)
+			fmt.Println("sketch evaluation time:", since.Seconds(), "s", "window=", window)
+			return ts_results, err
+		}
+	*/
 
 	// Verify timeseries fit available memory during rollup calculations.
 	timeseriesLen := rssLen
