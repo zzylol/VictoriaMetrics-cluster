@@ -1,4 +1,4 @@
-package vmselectapi
+package vmselectsketchapi
 
 import (
 	"errors"

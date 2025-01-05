@@ -1,4 +1,4 @@
-package vmselectapi
+package vmselectsketchapi
 
 import (
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/querytracer"
