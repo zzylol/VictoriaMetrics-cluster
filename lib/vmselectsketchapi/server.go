@@ -782,7 +782,16 @@ func (s *Server) processSearchAndEval(ctx *vmselectRequestCtx) error {
 	defer s.endConcurrentRequest()
 
 	// Evaluate and send the result to vmselect.
-	s.api.SearchAndEval(ctx.qt, &ctx.sq, ctx.deadline)
+	results, isCovered, err := s.api.SearchAndEval(ctx.qt, &ctx.sq, ctx.deadline)
+	if err != nil {
+		return fmt.Errorf("cannot execute searchAndEval: %w", err)
+	}
+
+	if err := ctx.writeUint64(uint64(isCovered)); err != nil {
+		return fmt.Errorf("cannot write isCovered to vmselect: %w", err)
+	}
+
+	// TODO: write results
 
 	// Send 'end of response' marker
 	if err := ctx.writeString(""); err != nil {
