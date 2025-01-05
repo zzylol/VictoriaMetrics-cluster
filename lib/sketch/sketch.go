@@ -114,11 +114,35 @@ func (s *Sketch) GetSketchCacheStatus(qt *querytracer.Tracer, deadline uint64) (
 }
 
 // RegisterMetricNames registers all the metrics from mrs in the storage.
-func (s *Sketch) RegisterMetricNameFuncName(mn *storage.MetricName, funcName string, window int64, item_window int64) error {
+func (s *Sketch) RegisterMetricNameFuncName(mrs []storage.MetricRow, funcName string, window int64, item_window int64) error {
 	WG.Add(1)
-	err := s.sketchCache.NewVMSketchCacheInstance(mn, funcName, window, item_window)
+	var firstWarn error
+	for _, mr := range mrs {
+		mn := storage.GetMetricName()
+		defer storage.PutMetricName(mn)
+		if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
+			// Do not stop adding rows on error - just skip invalid row.
+			// This guarantees that invalid rows don't prevent
+			// from adding valid rows into the storage.
+			if firstWarn == nil {
+				firstWarn = fmt.Errorf("cannot umarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
+			}
+			continue
+		}
+		mn.SortTags()
+		err := s.sketchCache.NewVMSketchCacheInstance(mn, funcName, window, item_window)
+		if err != nil {
+			// Do not stop adding rows on error - just skip invalid row.
+			// This guarantees that invalid rows don't prevent
+			// from adding valid rows into the storage.
+			if firstWarn == nil {
+				firstWarn = fmt.Errorf("cannot add row to sketch cache MetricNameRaw %q: %w", mr.MetricNameRaw, err)
+			}
+		}
+	}
+
 	WG.Done()
-	return err
+	return firstWarn
 }
 
 func (s *Sketch) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow) error {
@@ -139,7 +163,7 @@ type SketchResults struct {
 	sketchInss []SketchResult
 }
 
-func (s *Sketch) SearchTimeSeriesCoverage(start, end int64, mns []string, funcNames []string, maxMetrics int, deadline searchutils.Deadline) (*SketchResults, bool, error) {
+func (s *Sketch) SearchTimeSeriesCoverage(start, end int64, mns []string, funcName string, maxMetrics int, deadline searchutils.Deadline) (*SketchResults, bool, error) {
 	srs := &SketchResults{
 		deadline:   deadline,
 		sketchInss: make([]SketchResult, 0),
@@ -185,4 +209,9 @@ func (s *Sketch) DeleteSeries(qt *querytracer.Tracer, MetricNameRaws [][]byte, d
 		total += count
 	}
 	return total, err
+}
+
+func (s *Sketch) SearchAndEval(start, end int64, mns []string, funcName string, maxMetrics int, deadline searchutils.Deadline) {
+	scs, isCovered, err := s.sketchCache.SearchTimeSeriesCoverage(start, end, mns, funcName, maxMetrics, deadline)
+
 }

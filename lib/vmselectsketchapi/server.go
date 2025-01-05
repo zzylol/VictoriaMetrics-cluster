@@ -620,6 +620,54 @@ func (s *Server) processRegisterMetricNames(ctx *vmselectRequestCtx) error {
 }
 
 func (s *Server) processRegisterMetricNameFuncName(ctx *vmselectRequestCtx) error {
+	s.registerMetricNamesRequests.Inc()
+
+	// Read request
+	metricsCount, err := ctx.readUint64()
+	if err != nil {
+		return fmt.Errorf("cannot read metricsCount: %w", err)
+	}
+	if metricsCount > maxMetricNamesPerRequest {
+		return fmt.Errorf("too many metric names in a single request; got %d; mustn't exceed %d", metricsCount, maxMetricNamesPerRequest)
+	}
+	mrs := make([]storage.MetricRow, metricsCount)
+	for i := 0; i < int(metricsCount); i++ {
+		if err := ctx.readDataBufBytes(maxMetricNameRawSize); err != nil {
+			return fmt.Errorf("cannot read metricNameRaw: %w", err)
+		}
+		mr := &mrs[i]
+		mr.MetricNameRaw = append(mr.MetricNameRaw[:0], ctx.dataBuf...)
+	}
+
+	window, err := ctx.readUint64()
+	if err != nil {
+		return fmt.Errorf("cannot read window: %w", err)
+	}
+
+	item_window, err := ctx.readUint64()
+	if err != nil {
+		return fmt.Errorf("cannot read item_window: %w", err)
+	}
+
+	funcNameID, err := ctx.readUint32()
+	if err != nil {
+		return fmt.Errorf("cannot read funcNameID: %w", err)
+	}
+	funcName := sketch.GetFuncName(funcNameID)
+
+	if err := s.beginConcurrentRequest(ctx); err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+	defer s.endConcurrentRequest()
+
+	if err := s.api.RegisterMetricNameFuncName(ctx.qt, mrs, funcName, int64(window), int64(item_window), ctx.deadline); err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+
+	// Send an empty error message to vmselect.
+	if err := ctx.writeString(""); err != nil {
+		return fmt.Errorf("cannot send empty error message: %w", err)
+	}
 	return nil
 }
 
@@ -734,7 +782,7 @@ func (s *Server) processSearchAndEval(ctx *vmselectRequestCtx) error {
 	defer s.endConcurrentRequest()
 
 	// Evaluate and send the result to vmselect.
-	// TODO: implement this
+	s.api.SearchAndEval(ctx.qt, mrs, tr, funcName, ctx.deadline)
 
 	// Send 'end of response' marker
 	if err := ctx.writeString(""); err != nil {

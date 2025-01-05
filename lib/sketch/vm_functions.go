@@ -42,6 +42,26 @@ var funcSketchMap = map[string]([]SketchType){
 	"quantile_over_time": {EHKLL},
 }
 
+var funcIDMap = map[uint32](string){
+	1:  "avg_over_time",
+	2:  "count_over_time",
+	3:  "entropy_over_time",
+	4:  "max_over_time",
+	5:  "min_over_time",
+	6:  "stddev_over_time",
+	7:  "stdvar_over_time",
+	8:  "sum_over_time",
+	9:  "sum2_over_time",
+	10: "distinct_over_time",
+	11: "l1_over_time",
+	12: "l2_over_time",
+	13: "quantile_over_time",
+}
+
+func GetFuncName(funcNameID uint32) string {
+	return funcIDMap[funcNameID]
+}
+
 func funcVMChangeOverTime(ctx context.Context, sketchIns *SketchInstances, c []float64, t1, t2, t int64) float64 {
 	count := sketchIns.sampling.QueryCount(t1, t2)
 	return count

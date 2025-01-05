@@ -85,10 +85,14 @@ func (api *vmsketchAPI) RegisterMetricNames(qt *querytracer.Tracer, mrs []storag
 	return nil
 }
 
-func (api *vmsketchAPI) RegisterMetricNameFuncName(qt *querytracer.Tracer, mn *storage.MetricName, funcName string, window int64, item_window int64) error {
+func (api *vmsketchAPI) RegisterMetricNameFuncName(qt *querytracer.Tracer, mrs []storage.MetricRow, funcName string, window int64, item_window int64, deadline uint64) error {
 	qtChild := qt.NewChild("RegisterMetricNameFuncName=%q", funcName)
 	qtChild.Done()
-	return api.s.RegisterMetricNameFuncName(mn, funcName, window, item_window)
+	return api.s.RegisterMetricNameFuncName(mrs, funcName, window, item_window)
+}
+
+func (api *vmsketchAPI) SearchAndEval(qt *querytracer.Tracer, sq *sketch.SearchQuery, deadline uint64) (*sketch.SearchResults, error) {
+	return api.s.SearchAndEval(qt, sq, deadline)
 }
 
 func getMaxMetrics(sq *sketch.SearchQuery) int {
