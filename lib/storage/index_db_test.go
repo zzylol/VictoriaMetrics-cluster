@@ -12,13 +12,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/fastcache"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/bytesutil"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/encoding"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/fs"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/mergeset"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/uint64set"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/workingsetcache"
-	"github.com/VictoriaMetrics/fastcache"
 )
 
 func TestMarshalUnmarshalMetricIDs(t *testing.T) {
@@ -690,7 +690,7 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount,
 			value := fmt.Sprintf("val\x01_%d\x00_%d\x02", i, j)
 			mn.AddTag(key, value)
 		}
-		mn.sortTags()
+		mn.SortTags()
 		metricNameBuf = mn.Marshal(metricNameBuf[:0])
 
 		// Create tsid for the metricName.
@@ -752,7 +752,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, ten
 		}
 		tc[tsid.MetricID] = true
 
-		mn.sortTags()
+		mn.SortTags()
 		metricName := mn.Marshal(nil)
 
 		is := db.getIndexSearch(0, 0, noDeadline)
@@ -1735,7 +1735,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 			"some_unique_id",
 			fmt.Sprintf("%v", day),
 		)
-		mn.sortTags()
+		mn.SortTags()
 		return mn
 	}
 	for day := 0; day < days; day++ {
@@ -1798,7 +1798,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		"labelToDelete",
 		fmt.Sprintf("%v", day),
 	)
-	mn.sortTags()
+	mn.SortTags()
 	metricNameBuf = mn.Marshal(metricNameBuf[:0])
 	var genTSID generationTSID
 	if !is3.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
@@ -2261,7 +2261,7 @@ func TestSearchContainsTimeRange(t *testing.T) {
 			"some_unique_id",
 			fmt.Sprintf("%v", day),
 		)
-		mn.sortTags()
+		mn.SortTags()
 		return mn
 	}
 

@@ -51,7 +51,7 @@ func testMetricNameSortTags(t *testing.T, tags, expectedTags []string) {
 	for _, t := range tags {
 		mn.AddTag(t, "")
 	}
-	mn.sortTags()
+	mn.SortTags()
 
 	resultTags := []string{}
 	for i := range mn.Tags {
@@ -82,7 +82,7 @@ func TestMetricNameMarshalDuplicateKeys(t *testing.T) {
 	mnExpected.AddTag("foo", "abc")
 	mnExpected.AddTag("tt", "xx")
 
-	mn.sortTags()
+	mn.SortTags()
 	data := mn.Marshal(nil)
 	var mn1 MetricName
 	if err := mn1.Unmarshal(data); err != nil {
@@ -104,7 +104,7 @@ func TestMetricNameMarshalUnmarshal(t *testing.T) {
 				value := fmt.Sprintf("\x02\x00\x01value_%d_%d", i, j)
 				mn.AddTag(key, value)
 			}
-			mn.sortTags()
+			mn.SortTags()
 			data := mn.Marshal(nil)
 			var mn1 MetricName
 			if err := mn1.Unmarshal(data); err != nil {

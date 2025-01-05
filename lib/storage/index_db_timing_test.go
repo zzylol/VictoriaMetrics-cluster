@@ -88,7 +88,7 @@ func benchmarkIndexDBAddTSIDs(db *indexDB, genTSID *generationTSID, mn *MetricNa
 		for j := range mn.Tags {
 			mn.Tags[j].Value = strconv.AppendUint(mn.Tags[j].Value[:0], uint64(i*j), 16)
 		}
-		mn.sortTags()
+		mn.SortTags()
 
 		generateTSID(&genTSID.TSID, mn)
 		createAllIndexesForMetricName(is, mn, &genTSID.TSID, date)
@@ -115,7 +115,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		for i := 0; i < len(kvs); i += 2 {
 			mn.AddTag(kvs[i], kvs[i+1])
 		}
-		mn.sortTags()
+		mn.SortTags()
 		mn.AccountID = accountID
 		mn.ProjectID = projectID
 		generateTSID(&genTSID.TSID, &mn)
@@ -286,7 +286,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 		value := fmt.Sprintf("value_%d", i)
 		mn.AddTag(key, value)
 	}
-	mn.sortTags()
+	mn.SortTags()
 
 	var genTSID generationTSID
 	date := uint64(12345)
@@ -310,7 +310,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 		var metricNameLocal []byte
 		var mnLocal MetricName
 		mnLocal.CopyFrom(&mn)
-		mnLocal.sortTags()
+		mnLocal.SortTags()
 		for pb.Next() {
 			is := db.getIndexSearch(0, 0, noDeadline)
 			for i := 0; i < recordsPerLoop; i++ {

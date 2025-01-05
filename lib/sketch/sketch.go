@@ -6,7 +6,6 @@ import (
 
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/storage"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/syncwg"
-	"github.com/zzylol/promsketch"
 )
 
 // ErrDeadlineExceeded is returned when the request times out.
@@ -31,7 +30,7 @@ type Sketch struct {
 	newTimeseriesCreated  atomic.Uint64
 
 	// idbCurr contains the currently used indexdb.
-	sketchCache *promsketch.VMSketches
+	sketchCache *VMSketches
 
 	// prefetchedMetricIDsDeadline is used for periodic reset of prefetchedMetricIDs in order to limit its size under high rate of creating new series.
 	prefetchedMetricIDsDeadline atomic.Uint64
@@ -55,7 +54,7 @@ func (s *Sketch) IsReadOnly() bool {
 // }
 
 func (s *Sketch) MustOpenSketchCache() {
-	s.sketchCache = promsketch.NewVMSketches()
+	s.sketchCache = NewVMSketches()
 }
 
 func (s *Sketch) MustClose() {
