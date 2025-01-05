@@ -20,6 +20,7 @@ import (
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/netutil"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/querytracer"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/sketch"
+	"github.com/zzylol/VictoriaMetrics-cluster/lib/storage"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/timerpool"
 )
 
@@ -64,7 +65,7 @@ type Server struct {
 	labelValuesRequests         *metrics.Counter
 	tagValueSuffixesRequests    *metrics.Counter
 	seriesCountRequests         *metrics.Counter
-	tsdbStatusRequests          *metrics.Counter
+	sketchCacheStatusRequests   *metrics.Counter
 	searchMetricNamesRequests   *metrics.Counter
 	searchRequests              *metrics.Counter
 	tenantsRequests             *metrics.Counter
@@ -136,7 +137,7 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 		labelValuesRequests:         metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="labelValues",addr=%q}`, addr)),
 		tagValueSuffixesRequests:    metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="tagValueSuffixes",addr=%q}`, addr)),
 		seriesCountRequests:         metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="seriesSount",addr=%q}`, addr)),
-		tsdbStatusRequests:          metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="tsdbStatus",addr=%q}`, addr)),
+		sketchCacheStatusRequests:   metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="sketchCacheStatus",addr=%q}`, addr)),
 		searchMetricNamesRequests:   metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="searchMetricNames",addr=%q}`, addr)),
 		searchRequests:              metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="search",addr=%q}`, addr)),
 		tenantsRequests:             metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="tenants",addr=%q}`, addr)),
@@ -293,7 +294,7 @@ type vmselectRequestCtx struct {
 
 	qt *querytracer.Tracer
 	sq sketch.SearchQuery
-	mb sketch.MetricBlock
+	mb storage.MetricBlock
 
 	// timeout in seconds for the current request
 	timeout uint64
@@ -570,8 +571,8 @@ func (s *Server) processRPC(ctx *vmselectRequestCtx, rpcName string) error {
 		return s.processLabelNames(ctx)
 	case "seriesCount_v4":
 		return s.processSeriesCount(ctx)
-	case "tsdbStatus_v5":
-		return s.processTSDBStatus(ctx)
+	case "sketchCachetatus_v5":
+		return s.processSketchCacheStatus(ctx)
 	case "deleteSeries_v5":
 		return s.processDeleteSeries(ctx)
 	case "registerMetricNames_v3":
@@ -597,7 +598,7 @@ func (s *Server) processRegisterMetricNames(ctx *vmselectRequestCtx) error {
 	if metricsCount > maxMetricNamesPerRequest {
 		return fmt.Errorf("too many metric names in a single request; got %d; mustn't exceed %d", metricsCount, maxMetricNamesPerRequest)
 	}
-	mrs := make([]sketch.MetricRow, metricsCount)
+	mrs := make([]storage.MetricRow, metricsCount)
 	for i := 0; i < int(metricsCount); i++ {
 		if err := ctx.readDataBufBytes(maxMetricNameRawSize); err != nil {
 			return fmt.Errorf("cannot read metricNameRaw: %w", err)
@@ -861,8 +862,8 @@ func (s *Server) processSeriesCount(ctx *vmselectRequestCtx) error {
 	return nil
 }
 
-func (s *Server) processTSDBStatus(ctx *vmselectRequestCtx) error {
-	s.tsdbStatusRequests.Inc()
+func (s *Server) processSketchCacheStatus(ctx *vmselectRequestCtx) error {
+	s.sketchCacheStatusRequests.Inc()
 
 	// Read request
 	if err := ctx.readSearchQuery(); err != nil {
@@ -883,7 +884,7 @@ func (s *Server) processTSDBStatus(ctx *vmselectRequestCtx) error {
 	defer s.endConcurrentRequest()
 
 	// Execute the request
-	status, err := s.api.TSDBStatus(ctx.qt, &ctx.sq, focusLabel, int(topN), ctx.deadline)
+	status, err := s.api.SketchCacheStatus(ctx.qt, &ctx.sq, focusLabel, int(topN), ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -894,7 +895,7 @@ func (s *Server) processTSDBStatus(ctx *vmselectRequestCtx) error {
 	}
 
 	// Send status to vmselect.
-	return writeTSDBStatus(ctx, status)
+	return writeSketchCacheStatus(ctx, status)
 }
 
 func (s *Server) processTenants(ctx *vmselectRequestCtx) error {
@@ -938,42 +939,12 @@ func (s *Server) processTenants(ctx *vmselectRequestCtx) error {
 	return nil
 }
 
-func writeTSDBStatus(ctx *vmselectRequestCtx, status *sketch.TSDBStatus) error {
+func writeSketchCacheStatus(ctx *vmselectRequestCtx, status *sketch.SketchCacheStatus) error {
 	if err := ctx.writeUint64(status.TotalSeries); err != nil {
 		return fmt.Errorf("cannot write totalSeries to vmselect: %w", err)
 	}
 	if err := ctx.writeUint64(status.TotalLabelValuePairs); err != nil {
 		return fmt.Errorf("cannot write totalLabelValuePairs to vmselect: %w", err)
-	}
-	if err := writeTopHeapEntries(ctx, status.SeriesCountByMetricName); err != nil {
-		return fmt.Errorf("cannot write seriesCountByMetricName to vmselect: %w", err)
-	}
-	if err := writeTopHeapEntries(ctx, status.SeriesCountByLabelName); err != nil {
-		return fmt.Errorf("cannot write seriesCountByLabelName to vmselect: %w", err)
-	}
-	if err := writeTopHeapEntries(ctx, status.SeriesCountByFocusLabelValue); err != nil {
-		return fmt.Errorf("cannot write seriesCountByFocusLabelValue to vmselect: %w", err)
-	}
-	if err := writeTopHeapEntries(ctx, status.SeriesCountByLabelValuePair); err != nil {
-		return fmt.Errorf("cannot write seriesCountByLabelValuePair to vmselect: %w", err)
-	}
-	if err := writeTopHeapEntries(ctx, status.LabelValueCountByLabelName); err != nil {
-		return fmt.Errorf("cannot write labelValueCountByLabelName to vmselect: %w", err)
-	}
-	return nil
-}
-
-func writeTopHeapEntries(ctx *vmselectRequestCtx, a []sketch.TopHeapEntry) error {
-	if err := ctx.writeUint64(uint64(len(a))); err != nil {
-		return fmt.Errorf("cannot write topHeapEntries size: %w", err)
-	}
-	for _, e := range a {
-		if err := ctx.writeString(e.Name); err != nil {
-			return fmt.Errorf("cannot write topHeapEntry name: %w", err)
-		}
-		if err := ctx.writeUint64(e.Count); err != nil {
-			return fmt.Errorf("cannot write topHeapEntry count: %w", err)
-		}
 	}
 	return nil
 }
