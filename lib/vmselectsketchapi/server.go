@@ -109,10 +109,10 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 		return nil, fmt.Errorf("unable to listen vmselectAddr %s: %w", addr, err)
 	}
 	concurrencyLimitCh := make(chan struct{}, limits.MaxConcurrentRequests)
-	_ = metrics.NewGauge(`vm_vmselect_concurrent_requests_capacity`, func() float64 {
+	_ = metrics.NewGauge(`vm_vmselect_sketch_concurrent_requests_capacity`, func() float64 {
 		return float64(cap(concurrencyLimitCh))
 	})
-	_ = metrics.NewGauge(`vm_vmselect_concurrent_requests_current`, func() float64 {
+	_ = metrics.NewGauge(`vm_vmselect_sketch_concurrent_requests_current`, func() float64 {
 		return float64(len(concurrencyLimitCh))
 	})
 	s := &Server{
@@ -559,8 +559,8 @@ func (s *Server) endConcurrentRequest() {
 
 func (s *Server) processRPC(ctx *vmselectRequestCtx, rpcName string) error {
 	switch rpcName {
-	case "search_v7":
-		return s.processSearch(ctx)
+	case "searchAndEval_v7":
+		return s.processSearchAndEval(ctx)
 	case "searchMetricNames_v3":
 		return s.processSearchMetricNames(ctx)
 	case "labelValues_v5":

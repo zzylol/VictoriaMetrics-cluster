@@ -142,15 +142,8 @@ func (api *vmsketchAPI) Tenants(qt *querytracer.Tracer, tr storage.TimeRange, de
 	return api.s.SearchTenants(qt, tr, deadline)
 }
 
-func (api *vmsketchAPI) TSDBStatus(qt *querytracer.Tracer, sq *sketch.SearchQuery, focusLabel string, topN int, deadline uint64) (*storage.TSDBStatus, error) {
-	tr := sq.GetTimeRange()
-	maxMetrics := getMaxMetrics(sq)
-	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
-	if err != nil {
-		return nil, err
-	}
-	date := uint64(sq.MinTimestamp) / (24 * 3600 * 1000)
-	return api.s.GetTSDBStatus(qt, sq.AccountID, sq.ProjectID, tfss, date, focusLabel, topN, maxMetrics, deadline)
+func (api *vmsketchAPI) SketchCacheStatus(qt *querytracer.Tracer, sq *sketch.SearchQuery, focusLabel string, topN int, deadline uint64) (*sketch.SketchCacheStatus, error) {
+	return api.s.GetSketchCacheStatus(qt, deadline)
 }
 
 func (api *vmsketchAPI) DeleteSeries(qt *querytracer.Tracer, sq *sketch.SearchQuery, deadline uint64) (int, error) {
@@ -206,7 +199,7 @@ func (api *vmsketchAPI) setupTfss(qt *querytracer.Tracer, sq *sketch.SearchQuery
 
 // blockIterator implements vmselectsketchapi.BlockIterator
 type blockIterator struct {
-	sr storage.Search
+	sr sketch.Search
 }
 
 var blockIteratorsPool sync.Pool

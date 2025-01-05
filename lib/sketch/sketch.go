@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync/atomic"
 
+	"github.com/zzylol/VictoriaMetrics-cluster/lib/querytracer"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/storage"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/syncwg"
 )
@@ -101,4 +102,10 @@ func (s *Sketch) AddRow(metricNameRaw []byte, timestamp int64, value float64) er
 
 	// fmt.Println(mn, timestamp, value)
 	return s.sketchCache.AddRow(mn, timestamp, value)
+}
+
+func (s *Sketch) GetSketchCacheStatus(qt *querytracer.Tracer, deadline uint64) (*SketchCacheStatus, error) {
+	return &SketchCacheStatus{
+		TotalSeries: s.sketchCache.GetSeriesCount(),
+	}, nil
 }
