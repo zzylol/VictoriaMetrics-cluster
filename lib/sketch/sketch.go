@@ -15,6 +15,9 @@ import (
 	"github.com/zzylol/promsketch"
 )
 
+// ErrDeadlineExceeded is returned when the request times out.
+var ErrDeadlineExceeded = fmt.Errorf("deadline exceeded")
+
 type SketchCacheStatus struct {
 	TotalSeries          uint64
 	TotalLabelValuePairs uint64
