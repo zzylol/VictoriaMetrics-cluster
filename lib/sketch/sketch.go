@@ -109,3 +109,15 @@ func (s *Sketch) GetSketchCacheStatus(qt *querytracer.Tracer, deadline uint64) (
 		TotalSeries: s.sketchCache.GetSeriesCount(),
 	}, nil
 }
+
+// RegisterMetricNames registers all the metrics from mrs in the storage.
+func (s *Sketch) RegisterMetricNameFuncName(mn *storage.MetricName, funcName string, window int64, item_window int64) error {
+	WG.Add(1)
+	err := s.sketchCache.NewVMSketchCacheInstance(mn, funcName, window, item_window)
+	WG.Done()
+	return err
+}
+
+func (s *Sketch) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow) error {
+	return s.sketchCache.RegisterMetricNames(mrs)
+}

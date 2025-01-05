@@ -531,3 +531,20 @@ func (vs *VMSketches) OutputTimeseriesCoverage(mn *storage.MetricName, funcNames
 		}
 	}
 }
+
+func (vs *VMSketches) RegisterMetricNames(mrs []storage.MetricRow) error {
+	mn := storage.GetMetricName()
+	defer storage.PutMetricName(mn)
+
+	for i := range mrs {
+		if err := mn.UnmarshalRaw(mrs[i].MetricNameRaw); err != nil {
+			return fmt.Errorf("cannot umarshal MetricNameRaw %q: %w", mrs[i].MetricNameRaw, err)
+		}
+		mn.SortTags()
+		_, _, err := vs.getOrCreate(MetricNameHash(mn), mn)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
