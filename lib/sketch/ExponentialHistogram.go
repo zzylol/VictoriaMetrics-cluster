@@ -19,6 +19,15 @@ import (
 	"github.com/zzylol/go-kll"
 )
 
+type UnivSketchPool struct {
+	pool     []*UnivSketch
+	size     uint32
+	max_size uint32
+	bm       *roaring.Bitmap
+	toclean  uint32
+	mutex    sync.Mutex
+}
+
 type ExpoHistogramKLL struct {
 	s_count          int // sketch count
 	klls             []*kll.Sketch
@@ -57,6 +66,15 @@ type ExpoHistogramUniv struct {
 	cancel func()     // Cancellation function for background ehuniv cleaning.
 	mutex  sync.Mutex // when updating s_count and buckets, query should wait; when query, update() should wait
 
+}
+
+type CountBucket struct {
+	count      int64
+	sum        float64
+	sum2       float64
+	bucketsize int
+	min_time   int64
+	max_time   int64
 }
 
 type ExpoHistogramCount struct {
