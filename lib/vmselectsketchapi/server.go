@@ -70,8 +70,8 @@ type Server struct {
 	searchRequests              *metrics.Counter
 	tenantsRequests             *metrics.Counter
 
-	metricBlocksRead *metrics.Counter
-	metricRowsRead   *metrics.Counter
+	metricSketchesRead *metrics.Counter
+	metricRowsRead     *metrics.Counter
 }
 
 // Limits contains various limits for Server.
@@ -142,8 +142,8 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 		searchRequests:              metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="search",addr=%q}`, addr)),
 		tenantsRequests:             metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="tenants",addr=%q}`, addr)),
 
-		metricBlocksRead: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_metric_blocks_read_total{addr=%q}`, addr)),
-		metricRowsRead:   metrics.NewCounter(fmt.Sprintf(`vm_vmselect_metric_rows_read_total{addr=%q}`, addr)),
+		metricSketchesRead: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_metric_sketches_read_total{addr=%q}`, addr)),
+		metricRowsRead:     metrics.NewCounter(fmt.Sprintf(`vm_vmselect_metric_rows_read_total{addr=%q}`, addr)),
 	}
 
 	s.connsMap.Init("vmselect")
@@ -294,7 +294,7 @@ type vmselectRequestCtx struct {
 
 	qt *querytracer.Tracer
 	sq sketch.SearchQuery
-	mb storage.MetricBlock
+	ms sketch.MetricSketch
 
 	// timeout in seconds for the current request
 	timeout uint64
@@ -987,7 +987,7 @@ func (s *Server) processSearchMetricNames(ctx *vmselectRequestCtx) error {
 	return nil
 }
 
-func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
+func (s *Server) processSearchAndEval(ctx *vmselectRequestCtx) error {
 	s.searchRequests.Inc()
 
 	// Read request.
@@ -1016,14 +1016,14 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 
 	// Send found blocks to vmselect.
 	blocksRead := 0
-	for bi.NextBlock(&ctx.mb) {
+	for bi.NextBlock(&ctx.ms) {
 		blocksRead++
-		s.metricBlocksRead.Inc()
-		s.metricRowsRead.Add(ctx.mb.Block.RowsCount())
+		s.metricSketchesRead.Inc()
+		s.metricRowsRead.Add(ctx.ms.SketchCache.RowsCount())
 
-		ctx.dataBuf = ctx.mb.Marshal(ctx.dataBuf[:0])
+		ctx.dataBuf = ctx.ms.Marshal(ctx.dataBuf[:0])
 		if err := ctx.writeDataBufBytes(); err != nil {
-			return fmt.Errorf("cannot send MetricBlock: %w", err)
+			return fmt.Errorf("cannot send MetricSketch: %w", err)
 		}
 	}
 	if err := bi.Error(); err != nil {

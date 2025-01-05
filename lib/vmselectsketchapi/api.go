@@ -34,7 +34,7 @@ type API interface {
 	// DeleteSeries deletes series matching the given sq.
 	DeleteSeries(qt *querytracer.Tracer, sq *sketch.SearchQuery, deadline uint64) (int, error)
 
-	// RegisterMetricNames registers the given mrs in the storage.
+	// RegisterMetricNames registers the given mrs in the sketch.
 	RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadline uint64) error
 
 	// Tenants returns list of tenants in the storage on the given tr.
@@ -48,7 +48,7 @@ type BlockIterator interface {
 	// NextBlock reads the next block into mb.
 	//
 	// It returns true on success, false on error or if no blocks to read.
-	NextBlock(mb *storage.MetricBlock) bool
+	NextBlock(mb *sketch.MetricSketch) bool
 
 	// MustClose frees up resources allocated by BlockIterator.
 	MustClose()

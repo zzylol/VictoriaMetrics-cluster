@@ -570,6 +570,8 @@ github.com/zzylol/prometheus-sketch-VLDB/uniform-sampling-caching/prometheus v0.
 github.com/zzylol/prometheus-sketch-VLDB/uniform-sampling-caching/prometheus v0.0.0-20240903204742-c589c9446e48/go.mod h1:QiIlqAeVdnAETgD3FJsYsQzcDZu3tKSfs6TW5SyzAcw=
 github.com/zzylol/promsketch v0.4.1 h1:XtX5NJ6upP7/t5dKGG6tcuebnIgsb2Yg3WkYUv7qiL8=
 github.com/zzylol/promsketch v0.4.1/go.mod h1:5OI7bJAd7DkWRUSp40GyvebS+I3Baz/WbBiLdr+gJsQ=
+github.com/zzylol/promsketch v0.4.2 h1:yMcjAIudb2plbgfcvToD/QwKyrQcyD9Oi5+GKBCpdLw=
+github.com/zzylol/promsketch v0.4.2/go.mod h1:5OI7bJAd7DkWRUSp40GyvebS+I3Baz/WbBiLdr+gJsQ=
 go.opencensus.io v0.21.0/go.mod h1:mSImk1erAIZhrmZN+AvHh14ztQfjbGwt4TtuofqLduU=
 go.opencensus.io v0.22.0/go.mod h1:+kGneAE2xo2IficOXnaByMWTGM9T73dGwxeWcUqIpI8=
 go.opencensus.io v0.22.2/go.mod h1:yxeiOL68Rb0Xd1ddK5vPZ/oVn4vY4Ynel7k9FzqtOIw=

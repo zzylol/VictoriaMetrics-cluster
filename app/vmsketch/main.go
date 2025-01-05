@@ -23,18 +23,16 @@ import (
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/procutil"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/protoparser/common"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/pushmetrics"
+	"github.com/zzylol/VictoriaMetrics-cluster/lib/sketch"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/storage"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/stringsutil"
-	"github.com/zzylol/VictoriaMetrics-cluster/lib/timeutil"
 )
 
 var (
-	retentionPeriod  = flagutil.NewRetentionDuration("retentionPeriod", "1", "Data with timestamps outside the retentionPeriod is automatically deleted. The minimum retentionPeriod is 24h or 1d. See also -retentionFilter")
 	httpListenAddrs  = flagutil.NewArrayString("httpListenAddr", "Address to listen for incoming http requests. See also -httpListenAddr.useProxyProtocol")
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the given -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
-	storageDataPath   = flag.String("storageDataPath", "vmsketch-data", "Path to storage data")
 	vminsertAddr      = flag.String("vminsertAddr", ":8400", "TCP address to accept connections from vminsert services")
 	vmselectAddr      = flag.String("vmselectAddr", ":8401", "TCP address to accept connections from vmselect services")
 	snapshotAuthKey   = flagutil.NewPassword("snapshotAuthKey", "authKey, which must be passed in query string to /snapshot* pages")
@@ -96,48 +94,40 @@ func main() {
 	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexDBIndexBlocks.IntN())
 	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.IntN())
 
-	if retentionPeriod.Duration() < 24*time.Hour {
-		logger.Fatalf("-retentionPeriod cannot be smaller than a day; got %s", retentionPeriod)
-	}
-	logger.Infof("opening storage at %q with -retentionPeriod=%s", *storageDataPath, retentionPeriod)
+	logger.Infof("opening sketch in memory")
 	startTime := time.Now()
-	strg := storage.MustOpenStorage(*storageDataPath, retentionPeriod.Duration(), *maxHourlySeries, *maxDailySeries)
-	initStaleSnapshotsRemover(strg)
+	sketch := sketch.MustOpenSketchCache()
 
-	var m storage.Metrics
-	strg.UpdateMetrics(&m)
+	var m sketch.Metrics
+	sketch.UpdateMetrics(&m)
 	tm := &m.TableMetrics
-	partsCount := tm.SmallPartsCount + tm.BigPartsCount
-	blocksCount := tm.SmallBlocksCount + tm.BigBlocksCount
-	rowsCount := tm.SmallRowsCount + tm.BigRowsCount
-	sizeBytes := tm.SmallSizeBytes + tm.BigSizeBytes
-	logger.Infof("successfully opened storage %q in %.3f seconds; partsCount: %d; blocksCount: %d; rowsCount: %d; sizeBytes: %d",
-		*storageDataPath, time.Since(startTime).Seconds(), partsCount, blocksCount, rowsCount, sizeBytes)
 
-	// register storage metrics
-	storageMetrics := metrics.NewSet()
-	storageMetrics.RegisterMetricsWriter(func(w io.Writer) {
-		writeStorageMetrics(w, strg)
+	logger.Infof("successfully opened sketch in %.3f seconds;", time.Since(startTime).Seconds())
+
+	// register sketch metrics
+	sketchMetrics := metrics.NewSet()
+	sketchMetrics.RegisterMetricsWriter(func(w io.Writer) {
+		writeSketchMetrics(w, sketch)
 	})
-	metrics.RegisterSet(storageMetrics)
+	metrics.RegisterSet(sketchMetrics)
 
 	common.StartUnmarshalWorkers()
 
 	servers.GetMaxUniqueTimeSeries() // for init and logging only.
-	vminsertSrv, err := servers.NewVMInsertServer(*vminsertAddr, strg)
+	vminsertSrv, err := servers.NewVMInsertServer(*vminsertAddr, sketch)
 	if err != nil {
 		logger.Fatalf("cannot create a server with -vminsertAddr=%s: %s", *vminsertAddr, err)
 	}
-	vmselectSrv, err := servers.NewVMSelectServer(*vmselectAddr, strg)
+	vmselectSrv, err := servers.NewVMSelectServer(*vmselectAddr, sketch)
 	if err != nil {
 		logger.Fatalf("cannot create a server with -vmselectAddr=%s: %s", *vmselectAddr, err)
 	}
 
 	listenAddrs := *httpListenAddrs
 	if len(listenAddrs) == 0 {
-		listenAddrs = []string{":8482"}
+		listenAddrs = []string{":8410"}
 	}
-	requestHandler := newRequestHandler(strg)
+	requestHandler := newRequestHandler(sketch)
 	go httpserver.Serve(listenAddrs, useProxyProtocol, requestHandler)
 
 	pushmetrics.Init()
@@ -155,27 +145,24 @@ func main() {
 	logger.Infof("gracefully shutting down the service")
 	startTime = time.Now()
 
-	// deregister storage metrics
-	metrics.UnregisterSet(storageMetrics, true)
-	storageMetrics = nil
+	// deregister sketch metrics
+	metrics.UnregisterSet(sketchMetrics, true)
+	sketchMetrics = nil
 
-	stopStaleSnapshotsRemover()
 	vmselectSrv.MustStop()
 	vminsertSrv.MustStop()
 	common.StopUnmarshalWorkers()
 	logger.Infof("successfully shut down the service in %.3f seconds", time.Since(startTime).Seconds())
 
-	logger.Infof("gracefully closing the storage at %s", *storageDataPath)
+	logger.Infof("gracefully closing the sketch")
 	startTime = time.Now()
-	strg.MustClose()
-	logger.Infof("successfully closed the storage in %.3f seconds", time.Since(startTime).Seconds())
-
-	fs.MustStopDirRemover()
+	sketch.MustClose()
+	logger.Infof("successfully closed the sketch in %.3f seconds", time.Since(startTime).Seconds())
 
 	logger.Infof("the vmsketch has been stopped")
 }
 
-func newRequestHandler(strg *storage.Storage) httpserver.RequestHandler {
+func newRequestHandler(sketch *storage.Storage) httpserver.RequestHandler {
 	return func(w http.ResponseWriter, r *http.Request) bool {
 		if r.URL.Path == "/" {
 			if r.Method != http.MethodGet {
@@ -187,11 +174,11 @@ func newRequestHandler(strg *storage.Storage) httpserver.RequestHandler {
 `)
 			return true
 		}
-		return requestHandler(w, r, strg)
+		return requestHandler(w, r, sketch)
 	}
 }
 
-func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storage) bool {
+func requestHandler(w http.ResponseWriter, r *http.Request, sketch *storage.Storage) bool {
 	path := r.URL.Path
 	if path == "/internal/force_merge" {
 		if !httpserver.CheckAuthFlag(w, r, forceMergeAuthKey) {
@@ -204,7 +191,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 			defer activeForceMerges.Dec()
 			logger.Infof("forced merge for partition_prefix=%q has been started", partitionNamePrefix)
 			startTime := time.Now()
-			if err := strg.ForceMergePartitions(partitionNamePrefix); err != nil {
+			if err := sketch.ForceMergePartitions(partitionNamePrefix); err != nil {
 				logger.Errorf("error in forced merge for partition_prefix=%q: %s", partitionNamePrefix, err)
 				return
 			}
@@ -217,7 +204,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 			return true
 		}
 		logger.Infof("flushing storage to make pending data available for reading")
-		strg.DebugFlush()
+		sketch.DebugFlush()
 		return true
 	}
 	if !strings.HasPrefix(path, "/snapshot") {
@@ -232,7 +219,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 	case "/create":
 		snapshotsCreateTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		snapshotPath, err := strg.CreateSnapshot()
+		snapshotPath, err := sketch.CreateSnapshot()
 		if err != nil {
 			err = fmt.Errorf("cannot create snapshot: %w", err)
 			jsonResponseError(w, err)
@@ -244,7 +231,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 	case "/list":
 		snapshotsListTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		snapshots, err := strg.ListSnapshots()
+		snapshots, err := sketch.ListSnapshots()
 		if err != nil {
 			err = fmt.Errorf("cannot list snapshots: %w", err)
 			jsonResponseError(w, err)
@@ -265,7 +252,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		w.Header().Set("Content-Type", "application/json")
 		snapshotName := r.FormValue("snapshot")
 
-		snapshots, err := strg.ListSnapshots()
+		snapshots, err := sketch.ListSnapshots()
 		if err != nil {
 			err = fmt.Errorf("cannot list snapshots: %w", err)
 			jsonResponseError(w, err)
@@ -274,7 +261,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		}
 		for _, snName := range snapshots {
 			if snName == snapshotName {
-				if err := strg.DeleteSnapshot(snName); err != nil {
+				if err := sketch.DeleteSnapshot(snName); err != nil {
 					err = fmt.Errorf("cannot delete snapshot %q: %w", snName, err)
 					jsonResponseError(w, err)
 					snapshotsDeleteErrorsTotal.Inc()
@@ -291,7 +278,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 	case "/delete_all":
 		snapshotsDeleteAllTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
-		snapshots, err := strg.ListSnapshots()
+		snapshots, err := sketch.ListSnapshots()
 		if err != nil {
 			err = fmt.Errorf("cannot list snapshots: %w", err)
 			jsonResponseError(w, err)
@@ -299,7 +286,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 			return true
 		}
 		for _, snapshotName := range snapshots {
-			if err := strg.DeleteSnapshot(snapshotName); err != nil {
+			if err := sketch.DeleteSnapshot(snapshotName); err != nil {
 				err = fmt.Errorf("cannot delete snapshot %q: %w", snapshotName, err)
 				jsonResponseError(w, err)
 				snapshotsDeleteAllErrorsTotal.Inc()
@@ -311,37 +298,6 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 	default:
 		return false
 	}
-}
-
-func initStaleSnapshotsRemover(strg *storage.Storage) {
-	staleSnapshotsRemoverCh = make(chan struct{})
-	if snapshotsMaxAge.Duration() <= 0 {
-		return
-	}
-	snapshotsMaxAgeDur := snapshotsMaxAge.Duration()
-	staleSnapshotsRemoverWG.Add(1)
-	go func() {
-		defer staleSnapshotsRemoverWG.Done()
-		d := timeutil.AddJitterToDuration(time.Second * 11)
-		t := time.NewTicker(d)
-		defer t.Stop()
-		for {
-			select {
-			case <-staleSnapshotsRemoverCh:
-				return
-			case <-t.C:
-			}
-			if err := strg.DeleteStaleSnapshots(snapshotsMaxAgeDur); err != nil {
-				// Use logger.Errorf instead of logger.Fatalf in the hope the error is temporary.
-				logger.Errorf("cannot delete stale snapshots: %s", err)
-			}
-		}
-	}()
-}
-
-func stopStaleSnapshotsRemover() {
-	close(staleSnapshotsRemoverCh)
-	staleSnapshotsRemoverWG.Wait()
 }
 
 var (
@@ -365,9 +321,9 @@ var (
 	snapshotsDeleteAllErrorsTotal = metrics.NewCounter(`vm_http_request_errors_total{path="/snapshot/delete_all"}`)
 )
 
-func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
+func writeSketchMetrics(w io.Writer, sketch *storage.Storage) {
 	var m storage.Metrics
-	strg.UpdateMetrics(&m)
+	sketch.UpdateMetrics(&m)
 	tm := &m.TableMetrics
 	idbm := &m.IndexDBMetrics
 
@@ -375,10 +331,10 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vm_free_disk_space_limit_bytes{path=%q}`, *storageDataPath), uint64(minFreeDiskSpaceBytes.N))
 
 	isReadOnly := 0
-	if strg.IsReadOnly() {
+	if sketch.IsReadOnly() {
 		isReadOnly = 1
 	}
-	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vm_storage_is_read_only{path=%q}`, *storageDataPath), uint64(isReadOnly))
+	metrics.WriteGaugeUint64(w, fmt.Sprintf(`vm_sketch_is_read_only{path=%q}`, *storageDataPath), uint64(isReadOnly))
 
 	metrics.WriteGaugeUint64(w, `vm_active_merges{type="storage/inmemory"}`, tm.ActiveInmemoryMerges)
 	metrics.WriteGaugeUint64(w, `vm_active_merges{type="storage/small"}`, tm.ActiveSmallMerges)
@@ -482,15 +438,6 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 		metrics.WriteCounterUint64(w, `vm_daily_series_limit_rows_dropped_total`, m.DailySeriesLimitRowsDropped)
 	}
 
-	metrics.WriteCounterUint64(w, `vm_timestamps_blocks_merged_total`, m.TimestampsBlocksMerged)
-	metrics.WriteCounterUint64(w, `vm_timestamps_bytes_saved_total`, m.TimestampsBytesSaved)
-
-	metrics.WriteGaugeUint64(w, `vm_rows{type="storage/inmemory"}`, tm.InmemoryRowsCount)
-	metrics.WriteGaugeUint64(w, `vm_rows{type="storage/small"}`, tm.SmallRowsCount)
-	metrics.WriteGaugeUint64(w, `vm_rows{type="storage/big"}`, tm.BigRowsCount)
-	metrics.WriteGaugeUint64(w, `vm_rows{type="indexdb/inmemory"}`, idbm.InmemoryItemsCount)
-	metrics.WriteGaugeUint64(w, `vm_rows{type="indexdb/file"}`, idbm.FileItemsCount)
-
 	metrics.WriteCounterUint64(w, `vm_date_range_search_calls_total`, idbm.DateRangeSearchCalls)
 	metrics.WriteCounterUint64(w, `vm_date_range_hits_total`, idbm.DateRangeSearchHits)
 	metrics.WriteCounterUint64(w, `vm_global_search_calls_total`, idbm.GlobalSearchCalls)
@@ -581,8 +528,6 @@ func jsonResponseError(w http.ResponseWriter, err error) {
 func usage() {
 	const s = `
 vmsketch caches time series intermediate results based on query statistics and returns the queried results to vmselect.
-
-See the docs at https://docs.victoriametrics.com/cluster-victoriametrics/ .
 `
 	flagutil.Usage(s)
 }

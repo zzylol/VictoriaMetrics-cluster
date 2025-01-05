@@ -126,7 +126,7 @@ require (
 	github.com/zzylol/metricsql v0.1.1 // indirect
 	github.com/zzylol/prometheus-sketch-VLDB/prometheus-sketches v0.0.0-20240903204742-c589c9446e48 // indirect
 	github.com/zzylol/prometheus-sketch-VLDB/uniform-sampling-caching/prometheus v0.0.0-20240903204742-c589c9446e48 // indirect
-	github.com/zzylol/promsketch v0.4.1 // indirect
+	github.com/zzylol/promsketch v0.4.2 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/collector/pdata v1.20.0 // indirect
 	go.opentelemetry.io/collector/semconv v0.114.0 // indirect

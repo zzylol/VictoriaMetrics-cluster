@@ -7,7 +7,17 @@ import (
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/encoding"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/slicesutil"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/stringsutil"
+	"github.com/zzylol/promsketch"
 )
+
+// MetricSketch is a time series sketch instance for a single metric.
+type MetricSketch struct {
+	// MetricName is metric name for the given Block.
+	MetricName []byte
+
+	// SketchCache is a Sketch Cache for the given MetricName
+	SketchCache promsketch.VMSketchSeries
+}
 
 // TenantToken represents a tenant (accountID, projectID) pair.
 type TenantToken struct {
