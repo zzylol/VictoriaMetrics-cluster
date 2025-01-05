@@ -138,7 +138,7 @@ type MetricName struct {
 	MetricGroup []byte
 
 	// Tags are optional. They must be sorted by tag Key for canonical view.
-	// Use sortTags method.
+	// Use SortTags method.
 	Tags []Tag
 }
 
@@ -165,6 +165,28 @@ func (mn *MetricName) Reset() {
 	mn.ProjectID = 0
 	mn.MetricGroup = mn.MetricGroup[:0]
 	mn.Tags = mn.Tags[:0]
+}
+
+// Equal returns true if tag equals t
+func (mn *MetricName) Equal(other *MetricName) bool {
+	if len(mn.MetricGroup) != len(other.MetricGroup) || len(mn.Tags) != len(other.Tags) {
+		return false
+	}
+
+	if !bytes.Equal(mn.MetricGroup, other.MetricGroup) {
+		return false
+	}
+
+	if len(mn.Tags) == 0 {
+		return true
+	}
+
+	for i := range mn.Tags {
+		if string(mn.Tags[i].Key) != string(other.Tags[i].Key) || string(mn.Tags[i].Value) != string(other.Tags[i].Value) {
+			return false
+		}
+	}
+	return true
 }
 
 // MoveFrom moves src to mn.
@@ -401,7 +423,7 @@ func hasTag(tags []string, key []byte) bool {
 func (mn *MetricName) String() string {
 	var mnCopy MetricName
 	mnCopy.CopyFrom(mn)
-	mnCopy.sortTags()
+	mnCopy.SortTags()
 	var tags []string
 	for i := range mnCopy.Tags {
 		t := &mnCopy.Tags[i]
@@ -413,7 +435,7 @@ func (mn *MetricName) String() string {
 
 // Marshal appends marshaled mn to dst and returns the result.
 //
-// mn.sortTags must be called before calling this function
+// mn.SortTags must be called before calling this function
 // in order to sort and de-duplcate tags.
 func (mn *MetricName) Marshal(dst []byte) []byte {
 	// Calculate the required size and pre-allocate space in dst
@@ -473,7 +495,7 @@ func (mn *MetricName) Unmarshal(src []byte) error {
 	}
 
 	// There is no need in verifying for identical tag keys,
-	// since they must be handled by MetricName.sortTags before calling MetricName.Marshal.
+	// since they must be handled by MetricName.SortTags before calling MetricName.Marshal.
 
 	return nil
 }
@@ -483,7 +505,7 @@ func (mn *MetricName) Unmarshal(src []byte) error {
 //
 // The result must be unmarshaled with UnmarshalNoAccountIDProjectID.
 //
-// It is expected that mn.Tags are already sorted and de-duplicated with mn.sortTags.
+// It is expected that mn.Tags are already sorted and de-duplicated with mn.SortTags.
 func (mn *MetricName) MarshalNoAccountIDProjectID(dst []byte) []byte {
 	// Calculate the required size and pre-allocate space in dst
 	dstLen := len(dst)
@@ -586,7 +608,7 @@ func (mn *MetricName) marshalRaw(dst []byte) []byte {
 	dst = marshalBytesFast(dst, nil)
 	dst = marshalBytesFast(dst, mn.MetricGroup)
 
-	mn.sortTags()
+	mn.SortTags()
 	for i := range mn.Tags {
 		tag := &mn.Tags[i]
 		dst = marshalBytesFast(dst, tag.Key)
@@ -654,9 +676,9 @@ func unmarshalBytesFast(src []byte) ([]byte, []byte, error) {
 	return src[n:], src[:n], nil
 }
 
-// sortTags sorts tags in mn to canonical form needed for storing in the index.
+// SortTags sorts tags in mn to canonical form needed for storing in the index.
 //
-// The sortTags tries moving job-like tag to mn.Tags[0], while instance-like tag to mn.Tags[1].
+// The SortTags tries moving job-like tag to mn.Tags[0], while instance-like tag to mn.Tags[1].
 // See commonTagKeys list for job-like and instance-like tags.
 // This guarantees that indexdb entries for the same (job, instance) are located
 // close to each other on disk. This reduces disk seeks and disk read IO when metrics
@@ -667,7 +689,7 @@ func unmarshalBytesFast(src []byte) ([]byte, []byte, error) {
 //
 // Tags sorting is quite slow, so try avoiding it by caching mn
 // with sorted tags.
-func (mn *MetricName) sortTags() {
+func (mn *MetricName) SortTags() {
 	if len(mn.Tags) == 0 {
 		return
 	}

@@ -3,11 +3,88 @@ package sketch
 import (
 	"context"
 	"fmt"
+	"sync"
 	"sync/atomic"
 
 	"github.com/cespare/xxhash"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/storage"
 )
+
+type UnivConfig struct {
+	TopK_size int
+	Row_no    int
+	Col_no    int
+	Layer     int
+}
+
+type EHUnivConfig struct {
+	K                int64
+	Time_window_size int64
+	Univ_config      UnivConfig
+}
+
+type EHKLLConfig struct {
+	K                int64
+	Kll_k            int
+	Time_window_size int64
+}
+
+type SamplingConfig struct {
+	Sampling_rate    float64
+	Time_window_size int64
+	Max_size         int
+}
+
+// SketchConfig bundles sketch configurations for promsketch
+type SketchConfig struct {
+	// 	CM_config       CMConfig
+	// CS_config      CSConfig
+	// Univ_config    UnivConfig
+	// SH_univ_config SHUnivConfig
+	// 	SH_count_config SHCountConfig
+	// EH_count_config EHCountConfig
+	EH_univ_config EHUnivConfig
+	EH_kll_config  EHKLLConfig
+	// EH_dd_config    EHDDConfig
+	// EffSum_config   EffSumConfig
+	// EffSum2_config  EffSum2Config
+	Sampling_config SamplingConfig
+}
+
+type stripeLock struct {
+	sync.RWMutex
+	// Padding to avoid multiple locks being on the same cache line.
+	_ [40]byte
+}
+
+type TSId int
+
+const (
+	// DefaultStripeSize is the default number of entries to allocate in the stripeSeries hash map.
+	DefaultStripeSize = 1 << 14
+)
+
+type SketchType int
+
+const (
+	SHUniv SketchType = iota + 1
+	EHUniv
+	EHCount
+	EHKLL
+	EHDD
+	EffSum
+	EffSum2
+	USampling
+)
+
+// Each series maintain their own sketches
+type SketchInstances struct {
+	// shuniv *SmoothHistogramUnivMon
+	ehuniv *ExpoHistogramUnivOptimized
+	ehkll  *ExpoHistogramKLL
+	// ehdd   *ExpoHistogramDD
+	sampling *UniformSampling
+}
 
 var seps = []byte{'\xff'}
 
