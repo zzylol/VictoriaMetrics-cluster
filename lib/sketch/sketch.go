@@ -199,7 +199,12 @@ func (s *Sketch) SearchTimeSeriesCoverage(start, end int64, mn *storage.MetricNa
 }
 
 func (s *Sketch) SearchAndEval(MetricNameRaws [][]byte, start, end int64, funcNameID uint32, maxMetrics int, deadline uint64) (isCovered bool, err error) {
-	srs := &SketchResults{deadline: searchutils.Deadline{deadline: deadline}}
+	srs := &SketchResults{}
+
+	if len(MetricNameRaws) == 0 {
+		return false, nil
+	}
+
 	srs.sketchInss = make([]SketchResult, 0)
 	for _, metricNameRaw := range MetricNameRaws {
 		mn := storage.GetMetricName()
@@ -215,8 +220,9 @@ func (s *Sketch) SearchAndEval(MetricNameRaws [][]byte, start, end int64, funcNa
 		srs.sketchInss = append(srs.sketchInss, *sr)
 	}
 
-	srs.RunParallel()
-	// TODO: define return value type
+	srs.RunParallel() // TODO
+
+	// TODO: define return value type: each MetricName has a float64 value
 }
 
 var (
