@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/zzylol/VictoriaMetrics-cluster/lib/querytracer"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/storage"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/syncwg"
 	"github.com/zzylol/promsketch"
@@ -48,17 +47,12 @@ func (s *Sketch) IsReadOnly() bool {
 	return s.isReadOnly.Load()
 }
 
-// GetTSDBStatus returns TSDB status data for /api/v1/status/tsdb
-func (s *Sketch) GetSketchCacheStatus(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, date uint64, focusLabel string, maxMetrics int, deadline uint64) (*SketchCacheStatus, error) {
-	return s.sketchCache.getSketchCacheStatus(qt, accountID, projectID, tfss, date, focusLabel, maxMetrics, deadline)
-}
-
-// GetSeriesCount returns the approximate number of unique time series for the given (accountID, projectID).
-//
-// It includes the deleted series too and may count the same series
-func (s *Sketch) GetSeriesCount(accountID, projectID uint32, deadline uint64) (uint64, error) {
-	return s.sketchCache.GetSeriesCount(accountID, projectID, deadline)
-}
+// // GetSeriesCount returns the approximate number of unique time series for the given (accountID, projectID).
+// //
+// // It includes the deleted series too and may count the same series
+// func (s *Sketch) GetSeriesCount(accountID, projectID uint32, deadline uint64) (uint64, error) {
+// 	return s.sketchCache.GetSeriesCount(accountID, projectID, deadline)
+// }
 
 func (s *Sketch) MustOpenSketchCache() {
 	s.sketchCache = promsketch.NewVMSketches()
