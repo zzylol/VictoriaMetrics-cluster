@@ -92,7 +92,7 @@ func (api *vmsketchAPI) RegisterMetricNameFuncName(qt *querytracer.Tracer, mrs [
 }
 
 func (api *vmsketchAPI) SearchAndEval(qt *querytracer.Tracer, sq *sketch.SearchQuery, deadline uint64) (*sketch.SearchResults, error) {
-	return api.s.SearchAndEval(qt, sq, deadline)
+	return api.s.SearchAndEval(qt, sq.MetricNameRaws, sq.MinTimestamp, sq.MaxTimestamp, sq.FuncNameID, deadline)
 }
 
 func getMaxMetrics(sq *sketch.SearchQuery) int {

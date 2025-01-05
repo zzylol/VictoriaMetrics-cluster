@@ -211,7 +211,20 @@ func (s *Sketch) DeleteSeries(qt *querytracer.Tracer, MetricNameRaws [][]byte, d
 	return total, err
 }
 
-func (s *Sketch) SearchAndEval(start, end int64, mns []string, funcName string, maxMetrics int, deadline searchutils.Deadline) {
-	scs, isCovered, err := s.sketchCache.SearchTimeSeriesCoverage(start, end, mns, funcName, maxMetrics, deadline)
+func (s *Sketch) SearchAndEval(MetricNameRaws [][]byte, start, end int64, funcName uint32, deadline searchutils.Deadline) (isCovered bool, err error) {
+	for _, metricNameRaw := range MetricNameRaws {
+		mn := storage.GetMetricName()
+		defer storage.PutMetricName(mn)
+		if err := mn.UnmarshalRaw(metricNameRaw); err != nil {
+			err = fmt.Errorf("cannot umarshal MetricNameRaw %q: %w", metricNameRaw, err)
+		}
+		mn.SortTags()
+		scs, isCovered, err := s.sketchCache.SearchTimeSeriesCoverage(start, end, mn, funcName, deadline)
+		if err != nil || isCovered == false {
+			return isCovered, err
+		}
+		scs.Eval()
+	}
 
+	// TODO: define return value type
 }

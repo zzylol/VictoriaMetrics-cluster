@@ -134,7 +134,7 @@ type SearchQuery struct {
 
 	MetricNameRaws [][]byte
 
-	FuncName string
+	FuncNameID uint32
 
 	// The maximum number of time series the search query can return.
 	MaxMetrics int
@@ -203,6 +203,14 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 		}
 		src = src[nSize:]
 	}
+
+	funcNameID := encoding.UnmarshalUint32(src)
+	if nSize <= 0 {
+		return src, fmt.Errorf("cannot unmarshal FuncNameID from uint32")
+	}
+
+	src = src[4:]
+	sq.FuncNameID = funcNameID
 
 	if len(src) < 4 {
 		return src, fmt.Errorf("cannot unmarshal MaxMetrics: too short src len: %d; must be at least %d bytes", len(src), 4)

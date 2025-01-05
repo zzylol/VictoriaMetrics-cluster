@@ -782,7 +782,7 @@ func (s *Server) processSearchAndEval(ctx *vmselectRequestCtx) error {
 	defer s.endConcurrentRequest()
 
 	// Evaluate and send the result to vmselect.
-	s.api.SearchAndEval(ctx.qt, mrs, tr, funcName, ctx.deadline)
+	s.api.SearchAndEval(ctx.qt, &ctx.sq, ctx.deadline)
 
 	// Send 'end of response' marker
 	if err := ctx.writeString(""); err != nil {
