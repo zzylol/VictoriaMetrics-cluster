@@ -47,12 +47,12 @@ func (s *Sketch) IsReadOnly() bool {
 	return s.isReadOnly.Load()
 }
 
-// // GetSeriesCount returns the approximate number of unique time series for the given (accountID, projectID).
-// //
-// // It includes the deleted series too and may count the same series
-// func (s *Sketch) GetSeriesCount(accountID, projectID uint32, deadline uint64) (uint64, error) {
-// 	return s.sketchCache.GetSeriesCount(accountID, projectID, deadline)
-// }
+// GetSeriesCount returns the approximate number of unique time series for the given (accountID, projectID).
+//
+// It includes the deleted series too and may count the same series
+func (s *Sketch) GetSeriesCount(accountID, projectID uint32, deadline uint64) (uint64, error) {
+	return s.sketchCache.GetSeriesCount(), nil
+}
 
 func (s *Sketch) MustOpenSketchCache() {
 	s.sketchCache = NewVMSketches()

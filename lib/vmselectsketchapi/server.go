@@ -68,7 +68,6 @@ type Server struct {
 	sketchCacheStatusRequests   *metrics.Counter
 	searchMetricNamesRequests   *metrics.Counter
 	searchRequests              *metrics.Counter
-	tenantsRequests             *metrics.Counter
 
 	metricSketchesRead *metrics.Counter
 	metricRowsRead     *metrics.Counter
@@ -140,7 +139,6 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 		sketchCacheStatusRequests:   metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="sketchCacheStatus",addr=%q}`, addr)),
 		searchMetricNamesRequests:   metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="searchMetricNames",addr=%q}`, addr)),
 		searchRequests:              metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="search",addr=%q}`, addr)),
-		tenantsRequests:             metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="tenants",addr=%q}`, addr)),
 
 		metricSketchesRead: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_metric_sketches_read_total{addr=%q}`, addr)),
 		metricRowsRead:     metrics.NewCounter(fmt.Sprintf(`vm_vmselect_metric_rows_read_total{addr=%q}`, addr)),
@@ -577,8 +575,6 @@ func (s *Server) processRPC(ctx *vmselectRequestCtx, rpcName string) error {
 		return s.processDeleteSeries(ctx)
 	case "registerMetricNames_v3":
 		return s.processRegisterMetricNames(ctx)
-	case "tenants_v1":
-		return s.processTenants(ctx)
 	default:
 		return fmt.Errorf("unsupported rpcName: %q", rpcName)
 	}
@@ -896,47 +892,6 @@ func (s *Server) processSketchCacheStatus(ctx *vmselectRequestCtx) error {
 
 	// Send status to vmselect.
 	return writeSketchCacheStatus(ctx, status)
-}
-
-func (s *Server) processTenants(ctx *vmselectRequestCtx) error {
-	s.tenantsRequests.Inc()
-
-	// Read request
-	tr, err := ctx.readTimeRange()
-	if err != nil {
-		return err
-	}
-
-	if err := s.beginConcurrentRequest(ctx); err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	defer s.endConcurrentRequest()
-
-	// Execute the request
-	tenants, err := s.api.Tenants(ctx.qt, tr, ctx.deadline)
-	if err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-
-	// Send an empty error message to vmselect.
-	if err := ctx.writeString(""); err != nil {
-		return fmt.Errorf("cannot send empty error message: %w", err)
-	}
-
-	// Send tenants to vmselect
-	for _, tenant := range tenants {
-		if len(tenant) == 0 {
-			logger.Panicf("BUG: unexpected empty tenant name")
-		}
-		if err := ctx.writeString(tenant); err != nil {
-			return fmt.Errorf("cannot write tenant %q: %w", tenant, err)
-		}
-	}
-	// Send 'end of response' marker
-	if err := ctx.writeString(""); err != nil {
-		return fmt.Errorf("cannot send 'end of response' marker")
-	}
-	return nil
 }
 
 func writeSketchCacheStatus(ctx *vmselectRequestCtx, status *sketch.SketchCacheStatus) error {

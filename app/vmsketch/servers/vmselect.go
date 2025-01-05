@@ -138,10 +138,6 @@ func (api *vmsketchAPI) SeriesCount(_ *querytracer.Tracer, accountID, projectID 
 	return api.s.GetSeriesCount(accountID, projectID, deadline)
 }
 
-func (api *vmsketchAPI) Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline uint64) ([]string, error) {
-	return api.s.SearchTenants(qt, tr, deadline)
-}
-
 func (api *vmsketchAPI) SketchCacheStatus(qt *querytracer.Tracer, sq *sketch.SearchQuery, focusLabel string, topN int, deadline uint64) (*sketch.SketchCacheStatus, error) {
 	return api.s.GetSketchCacheStatus(qt, deadline)
 }
@@ -160,11 +156,19 @@ func (api *vmsketchAPI) DeleteSeries(qt *querytracer.Tracer, sq *sketch.SearchQu
 }
 
 func (api *vmsketchAPI) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, _ uint64) error {
+	qtChild := qt.NewChild("RegisterMetricNames")
+	qtChild.Done()
 	api.s.RegisterMetricNames(qt, mrs)
 	return nil
 }
 
-func (api *vmsketchAPI) setupTfss(qt *querytracer.Tracer, sq *sketch.SearchQuery, tr storage.TimeRange, maxMetrics int, deadline uint64) ([]*storage.TagFilters, error) {
+func (api *vmsketchAPI) RegisterMetricNameFuncName(qt *querytracer.Tracer, mn *storage.MetricName, funcName string, window int64, item_window int64) error {
+	qtChild := qt.NewChild("RegisterMetricNameFuncName=%q", funcName)
+	qtChild.Done()
+	return api.s.RegisterMetricNameFuncName(mn, funcName, window, item_window)
+}
+
+func (api *vmsketchAPI) setupTfss(qt *querytracer.Tracer, sq *sketch.SearchQuery, tr sketch.TimeRange, maxMetrics int, deadline uint64) ([]*storage.TagFilters, error) {
 	tfss := make([]*storage.TagFilters, 0, len(sq.TagFilterss))
 	accountID := sq.AccountID
 	projectID := sq.ProjectID
