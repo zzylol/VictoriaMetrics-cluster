@@ -72,12 +72,8 @@ func (api *vmsketchAPI) InitSearch(qt *querytracer.Tracer, sq *sketch.SearchQuer
 		return nil, err
 	}
 	maxMetrics := getMaxMetrics(sq)
-	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
-	if err != nil {
-		return nil, err
-	}
-	if len(tfss) == 0 {
-		return nil, fmt.Errorf("missing tag filters")
+	if len(sq.MetricNameRaws) == 0 {
+		return nil, fmt.Errorf("missing metric names")
 	}
 	bi := getBlockIterator()
 	bi.sr.Init(qt, api.s, tfss, tr, maxMetrics, deadline)
@@ -206,40 +202,11 @@ type blockIterator struct {
 	sr sketch.Search
 }
 
-var blockIteratorsPool sync.Pool
-
-func (bi *blockIterator) MustClose() {
-	bi.sr.MustClose()
-	blockIteratorsPool.Put(bi)
-}
-
-func getBlockIterator() *blockIterator {
-	v := blockIteratorsPool.Get()
-	if v == nil {
-		v = &blockIterator{}
-	}
-	return v.(*blockIterator)
-}
-
-func (bi *blockIterator) NextBlock(mb *storage.MetricBlock) bool {
-	if !bi.sr.NextMetricBlock() {
-		return false
-	}
-	mb.MetricName = append(mb.MetricName[:0], bi.sr.MetricBlockRef.MetricName...)
-	bi.sr.MetricBlockRef.BlockRef.MustReadBlock(&mb.Block)
-	return true
-}
-
-func (bi *blockIterator) Error() error {
-	return bi.sr.Error()
-}
-
 // checkTimeRange returns true if the given tr is denied for querying.
 func checkTimeRange(s *sketch.Sketch, tr sketch.TimeRange) error {
 	if !*denyQueriesOutsideRetention {
 		return nil
 	}
-	retentionMsecs := s.RetentionMsecs()
 	minAllowedTimestamp := int64(fasttime.UnixTimestamp()*1000) - retentionMsecs
 	if tr.MinTimestamp > minAllowedTimestamp {
 		return nil

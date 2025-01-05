@@ -2,13 +2,30 @@ package sketch
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/encoding"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/slicesutil"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/stringsutil"
 	"github.com/zzylol/promsketch"
 )
+
+// Search is a search for time series.
+type Search struct {
+
+	// tr contains time range used in the search.
+	tr TimeRange
+
+	MetricNameRaw [][]byte
+
+	// deadline in unix timestamp seconds for the current search.
+	deadline uint64
+
+	err error
+
+	needClosing bool
+
+	loops int
+}
 
 // MetricSketch is a time series sketch instance for a single metric.
 type MetricSketch struct {
@@ -17,24 +34,6 @@ type MetricSketch struct {
 
 	// SketchCache is a Sketch Cache for the given MetricName
 	SketchCache promsketch.VMSketchSeries
-}
-
-// TenantToken represents a tenant (accountID, projectID) pair.
-type TenantToken struct {
-	AccountID uint32
-	ProjectID uint32
-}
-
-// String returns string representation of t.
-func (t *TenantToken) String() string {
-	return fmt.Sprintf("{accountID=%d, projectID=%d}", t.AccountID, t.ProjectID)
-}
-
-// Marshal appends marshaled t to dst and returns the result.
-func (t *TenantToken) Marshal(dst []byte) []byte {
-	dst = encoding.MarshalUint32(dst, t.AccountID)
-	dst = encoding.MarshalUint32(dst, t.ProjectID)
-	return dst
 }
 
 // TagFilter represents a single tag filter from SearchQuery.
@@ -128,36 +127,17 @@ func (tf *TagFilter) Unmarshal(src []byte) ([]byte, error) {
 
 // SearchQuery is used for sending search queries to from vmselect to vmsketch.
 type SearchQuery struct {
-	AccountID uint32
-	ProjectID uint32
-
-	// TenantTokens and IsMultiTenant is artificial fields
-	// they're only exist at runtime and cannot be transferred
-	// via network calls for keeping communication protocol compatibility
-	// TODO:@f41gh7 introduce breaking change to the protocol later
-	// and use TenantTokens instead of AccountID and ProjectID
-	TenantTokens  []TenantToken
-	IsMultiTenant bool
 
 	// The time range for searching time series
 	MinTimestamp int64
 	MaxTimestamp int64
 
-	// Tag filters for the search query
-	TagFilterss [][]TagFilter
+	MetricNameRaws [][]byte
 
 	FuncName string
 
 	// The maximum number of time series the search query can return.
 	MaxMetrics int
-}
-
-func tagFiltersToString(tfs []TagFilter) string {
-	a := make([]string, len(tfs))
-	for i, tf := range tfs {
-		a[i] = tf.String()
-	}
-	return "{" + strings.Join(a, ",") + "}"
 }
 
 // GetTimeRange returns time range for the given sq.
@@ -170,34 +150,24 @@ func (sq *SearchQuery) GetTimeRange() TimeRange {
 
 // String returns string representation of the search query.
 func (sq *SearchQuery) String() string {
-	a := make([]string, len(sq.TagFilterss))
-	for i, tfs := range sq.TagFilterss {
-		a[i] = tagFiltersToString(tfs)
+	a := make([]string, len(sq.MetricNameRaws))
+	for i, mn := range sq.MetricNameRaws {
+		a[i] = string(mn)
 	}
 	start := TimestampToHumanReadableFormat(sq.MinTimestamp)
 	end := TimestampToHumanReadableFormat(sq.MaxTimestamp)
-	if !sq.IsMultiTenant {
-		return fmt.Sprintf("accountID=%d, projectID=%d, filters=%s, timeRange=[%s..%s]", sq.AccountID, sq.ProjectID, a, start, end)
-	}
 
-	tts := make([]string, len(sq.TenantTokens))
-	for i, tt := range sq.TenantTokens {
-		tts[i] = tt.String()
-	}
-	return fmt.Sprintf("tenants=[%s], filters=%s, timeRange=[%s..%s]", strings.Join(tts, ","), a, start, end)
+	return fmt.Sprintf("MetricNameRaws=%s, timeRange=[%s..%s]", a, start, end)
 }
 
-// MarshaWithoutTenant appends marshaled sq without AccountID/ProjectID to dst and returns the result.
+// Marshal appends marshaled sq without AccountID/ProjectID to dst and returns the result.
 // It is expected that TenantToken is already marshaled to dst.
-func (sq *SearchQuery) MarshaWithoutTenant(dst []byte) []byte {
+func (sq *SearchQuery) Marshal(dst []byte) []byte {
 	dst = encoding.MarshalVarInt64(dst, sq.MinTimestamp)
 	dst = encoding.MarshalVarInt64(dst, sq.MaxTimestamp)
-	dst = encoding.MarshalVarUint64(dst, uint64(len(sq.TagFilterss)))
-	for _, tagFilters := range sq.TagFilterss {
-		dst = encoding.MarshalVarUint64(dst, uint64(len(tagFilters)))
-		for i := range tagFilters {
-			dst = tagFilters[i].Marshal(dst)
-		}
+	dst = encoding.MarshalVarUint64(dst, uint64(len(sq.MetricNameRaws)))
+	for _, mn := range sq.MetricNameRaws {
+		dst = encoding.MarshalBytes(dst, mn)
 	}
 	dst = encoding.MarshalUint32(dst, uint32(sq.MaxMetrics))
 	return dst
@@ -205,19 +175,6 @@ func (sq *SearchQuery) MarshaWithoutTenant(dst []byte) []byte {
 
 // Unmarshal unmarshals sq from src and returns the tail.
 func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
-	if len(src) < 4 {
-		return src, fmt.Errorf("cannot unmarshal AccountID: too short src len: %d; must be at least %d bytes", len(src), 4)
-	}
-	sq.AccountID = encoding.UnmarshalUint32(src)
-	src = src[4:]
-
-	if len(src) < 4 {
-		return src, fmt.Errorf("cannot unmarshal ProjectID: too short src len: %d; must be at least %d bytes", len(src), 4)
-	}
-	sq.ProjectID = encoding.UnmarshalUint32(src)
-	src = src[4:]
-
-	sq.TenantTokens = []TenantToken{{AccountID: sq.AccountID, ProjectID: sq.ProjectID}}
 	minTs, nSize := encoding.UnmarshalVarInt64(src)
 	if nSize <= 0 {
 		return src, fmt.Errorf("cannot unmarshal MinTimestamp from varint")
@@ -232,30 +189,19 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 	src = src[nSize:]
 	sq.MaxTimestamp = maxTs
 
-	tfssCount, nSize := encoding.UnmarshalVarUint64(src)
+	mnsCount, nSize := encoding.UnmarshalVarUint64(src)
 	if nSize <= 0 {
-		return src, fmt.Errorf("cannot unmarshal the count of TagFilterss from uvarint")
+		return src, fmt.Errorf("cannot unmarshal the count of MetricNameRaws from uvarint")
 	}
 	src = src[nSize:]
-	sq.TagFilterss = slicesutil.SetLength(sq.TagFilterss, int(tfssCount))
+	sq.MetricNameRaws = slicesutil.SetLength(sq.MetricNameRaws, int(mnsCount))
 
-	for i := 0; i < int(tfssCount); i++ {
-		tfsCount, nSize := encoding.UnmarshalVarUint64(src)
+	for i := 0; i < int(mnsCount); i++ {
+		sq.MetricNameRaws[i], nSize = encoding.UnmarshalBytes(src)
 		if nSize <= 0 {
-			return src, fmt.Errorf("cannot unmarshal the count of TagFilters from uvarint")
+			return src, fmt.Errorf("cannot unmarshal MetricNameRaw[%d] from bytes", i)
 		}
 		src = src[nSize:]
-
-		tagFilters := sq.TagFilterss[i]
-		tagFilters = slicesutil.SetLength(tagFilters, int(tfsCount))
-		for j := 0; j < int(tfsCount); j++ {
-			tail, err := tagFilters[j].Unmarshal(src)
-			if err != nil {
-				return tail, fmt.Errorf("cannot unmarshal TagFilter #%d: %w", j, err)
-			}
-			src = tail
-		}
-		sq.TagFilterss[i] = tagFilters
 	}
 
 	if len(src) < 4 {
@@ -268,7 +214,7 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 }
 
 // NewSearchQuery creates new search query for the given args.
-func NewSearchQuery(accountID, projectID uint32, start, end int64, tagFilterss [][]TagFilter, maxMetrics int) *SearchQuery {
+func NewSearchQuery(accountID, projectID uint32, start, end int64, MetricNameRaws [][]byte, maxMetrics int) *SearchQuery {
 	if start < 0 {
 		// This is needed for https://github.com/zzylol/VictoriaMetrics-cluster/issues/5553
 		start = 0
@@ -277,15 +223,9 @@ func NewSearchQuery(accountID, projectID uint32, start, end int64, tagFilterss [
 		maxMetrics = 2e9
 	}
 	return &SearchQuery{
-		MinTimestamp: start,
-		MaxTimestamp: end,
-		TagFilterss:  tagFilterss,
-		MaxMetrics:   maxMetrics,
-		TenantTokens: []TenantToken{
-			{
-				AccountID: accountID,
-				ProjectID: projectID,
-			},
-		},
+		MinTimestamp:   start,
+		MaxTimestamp:   end,
+		MetricNameRaws: MetricNameRaws,
+		MaxMetrics:     maxMetrics,
 	}
 }

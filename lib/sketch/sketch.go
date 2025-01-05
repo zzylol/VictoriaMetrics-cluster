@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync/atomic"
 
+	"github.com/zzylol/VictoriaMetrics-cluster/app/vmselect/searchutils"
+	"github.com/zzylol/VictoriaMetrics-cluster/lib/bytesutil"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/querytracer"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/storage"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/syncwg"
@@ -42,6 +44,12 @@ type Sketch struct {
 	isReadOnly atomic.Bool
 }
 
+func MustOpenSketchCache() *Sketch {
+	return &Sketch{
+		sketchCache: NewVMSketches(),
+	}
+}
+
 // IsReadOnly returns information is storage in read only mode
 func (s *Sketch) IsReadOnly() bool {
 	return s.isReadOnly.Load()
@@ -52,10 +60,6 @@ func (s *Sketch) IsReadOnly() bool {
 // It includes the deleted series too and may count the same series
 func (s *Sketch) GetSeriesCount(accountID, projectID uint32, deadline uint64) (uint64, error) {
 	return s.sketchCache.GetSeriesCount(), nil
-}
-
-func (s *Sketch) MustOpenSketchCache() {
-	s.sketchCache = NewVMSketches()
 }
 
 func (s *Sketch) MustClose() {
@@ -120,4 +124,46 @@ func (s *Sketch) RegisterMetricNameFuncName(mn *storage.MetricName, funcName str
 
 func (s *Sketch) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow) error {
 	return s.sketchCache.RegisterMetricNames(mrs)
+}
+
+// Result is a single timeseries result.
+//
+// Search returns Result slice.
+type SketchResult struct {
+	MetricName *storage.MetricName
+	sketchIns  *SketchInstances
+}
+
+// Results holds results returned from ProcessSearchQuery.
+type SketchResults struct {
+	deadline   searchutils.Deadline
+	sketchInss []SketchResult
+}
+
+func (s *Sketch) SearchTimeSeriesCoverage(start, end int64, mns []string, funcNames []string, maxMetrics int, deadline searchutils.Deadline) (*SketchResults, bool, error) {
+	srs := &SketchResults{
+		deadline:   deadline,
+		sketchInss: make([]SketchResult, 0),
+	}
+
+	for _, mnstr := range mns {
+		mn := &storage.MetricName{}
+		if err := mn.Unmarshal(bytesutil.ToUnsafeBytes(mnstr)); err != nil {
+			return nil, false, fmt.Errorf("cannot unmarshal metricName %q: %w", mnstr, err)
+		}
+		if deadline.Exceeded() {
+			return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+		}
+
+		sketchIns, lookup := s.sketchCache.LookupMetricNameFuncNamesTimeRange(mn, funcNames, start, end)
+		if sketchIns == nil {
+			return nil, false, fmt.Errorf("sketchIns doesn't allocated")
+		}
+		if !lookup {
+			fmt.Println(sketchIns.PrintMinMaxTimeRange(mn, funcNames[0]))
+			return nil, false, fmt.Errorf("sketch cache doesn't cover metricName %q", mnstr)
+		}
+		srs.sketchInss = append(srs.sketchInss, SketchResult{sketchIns: sketchIns, MetricName: mn})
+	}
+	return srs, true, nil
 }
