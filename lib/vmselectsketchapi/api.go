@@ -13,7 +13,7 @@ type API interface {
 	SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, deadline uint64) (uint64, error)
 
 	// SketchCacheStatus returns sketch cache status for the given sq.
-	SketchCacheStatus(qt *querytracer.Tracer, sq *sketch.SearchQuery, focusLabel string, topN int, deadline uint64) (*sketch.SketchCacheStatus, error)
+	SketchCacheStatus(qt *querytracer.Tracer, sq *sketch.SearchQuery, deadline uint64) (*sketch.SketchCacheStatus, error)
 
 	// DeleteSeries deletes series matching the given sq.
 	DeleteSeries(qt *querytracer.Tracer, sq *sketch.SearchQuery, deadline uint64) (int, error)

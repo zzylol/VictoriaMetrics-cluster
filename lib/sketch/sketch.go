@@ -15,8 +15,7 @@ import (
 var ErrDeadlineExceeded = fmt.Errorf("deadline exceeded")
 
 type SketchCacheStatus struct {
-	TotalSeries          uint64
-	TotalLabelValuePairs uint64
+	TotalSeries uint64
 }
 
 // Sketch represents PromSketch instance.

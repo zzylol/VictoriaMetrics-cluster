@@ -557,16 +557,8 @@ func (s *Server) endConcurrentRequest() {
 
 func (s *Server) processRPC(ctx *vmselectRequestCtx, rpcName string) error {
 	switch rpcName {
-	case "searchAndEval_v7":
+	case "searchAndEval_v1":
 		return s.processSearchAndEval(ctx)
-	case "searchMetricNames_v3":
-		return s.processSearchMetricNames(ctx)
-	case "labelValues_v5":
-		return s.processLabelValues(ctx)
-	case "tagValueSuffixes_v4":
-		return s.processTagValueSuffixes(ctx)
-	case "labelNames_v5":
-		return s.processLabelNames(ctx)
 	case "seriesCount_v4":
 		return s.processSeriesCount(ctx)
 	case "sketchCachetatus_v5":
@@ -575,6 +567,8 @@ func (s *Server) processRPC(ctx *vmselectRequestCtx, rpcName string) error {
 		return s.processDeleteSeries(ctx)
 	case "registerMetricNames_v3":
 		return s.processRegisterMetricNames(ctx)
+	case "registerMetricNameFuncName_v1":
+		return s.processRegisterMetricNameFuncName(ctx)
 	default:
 		return fmt.Errorf("unsupported rpcName: %q", rpcName)
 	}
@@ -625,6 +619,10 @@ func (s *Server) processRegisterMetricNames(ctx *vmselectRequestCtx) error {
 	return nil
 }
 
+func (s *Server) processRegisterMetricNameFuncName(ctx *vmselectRequestCtx) error {
+	return nil
+}
+
 func (s *Server) processDeleteSeries(ctx *vmselectRequestCtx) error {
 	s.deleteSeriesRequests.Inc()
 
@@ -651,177 +649,6 @@ func (s *Server) processDeleteSeries(ctx *vmselectRequestCtx) error {
 	// Send deletedCount to vmselect.
 	if err := ctx.writeUint64(uint64(deletedCount)); err != nil {
 		return fmt.Errorf("cannot send deletedCount=%d: %w", deletedCount, err)
-	}
-	return nil
-}
-
-func (s *Server) processLabelNames(ctx *vmselectRequestCtx) error {
-	s.labelNamesRequests.Inc()
-
-	// Read request
-	if err := ctx.readSearchQuery(); err != nil {
-		return err
-	}
-	maxLabelNames, err := ctx.readLimit()
-	if err != nil {
-		return fmt.Errorf("cannot read maxLabelNames: %w", err)
-	}
-	if maxLabelNames <= 0 || maxLabelNames > s.limits.MaxLabelNames {
-		maxLabelNames = s.limits.MaxLabelNames
-	}
-
-	if err := s.beginConcurrentRequest(ctx); err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	defer s.endConcurrentRequest()
-
-	// Execute the request
-	labelNames, err := s.api.LabelNames(ctx.qt, &ctx.sq, maxLabelNames, ctx.deadline)
-	if err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-
-	// Send an empty error message to vmselect.
-	if err := ctx.writeString(""); err != nil {
-		return fmt.Errorf("cannot send empty error message: %w", err)
-	}
-
-	// Send labelNames to vmselect
-	for _, labelName := range labelNames {
-		if len(labelName) == 0 {
-			// Skip empty label names, since they may break RPC communication with vmselect
-			continue
-		}
-		if err := ctx.writeString(labelName); err != nil {
-			return fmt.Errorf("cannot write label name %q: %w", labelName, err)
-		}
-	}
-	// Send 'end of response' marker
-	if err := ctx.writeString(""); err != nil {
-		return fmt.Errorf("cannot send 'end of response' marker")
-	}
-	return nil
-}
-
-const maxLabelValueSize = 16 * 1024
-
-func (s *Server) processLabelValues(ctx *vmselectRequestCtx) error {
-	s.labelValuesRequests.Inc()
-
-	// Read request
-	if err := ctx.readDataBufBytes(maxLabelValueSize); err != nil {
-		return fmt.Errorf("cannot read labelName: %w", err)
-	}
-	labelName := string(ctx.dataBuf)
-	if err := ctx.readSearchQuery(); err != nil {
-		return err
-	}
-	maxLabelValues, err := ctx.readLimit()
-	if err != nil {
-		return fmt.Errorf("cannot read maxLabelValues: %w", err)
-	}
-	if maxLabelValues <= 0 || maxLabelValues > s.limits.MaxLabelValues {
-		maxLabelValues = s.limits.MaxLabelValues
-	}
-
-	if err := s.beginConcurrentRequest(ctx); err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	defer s.endConcurrentRequest()
-
-	// Execute the request
-	labelValues, err := s.api.LabelValues(ctx.qt, &ctx.sq, labelName, maxLabelValues, ctx.deadline)
-	if err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-
-	// Send an empty error message to vmselect.
-	if err := ctx.writeString(""); err != nil {
-		return fmt.Errorf("cannot send empty error message: %w", err)
-	}
-
-	// Send labelValues to vmselect
-	for _, labelValue := range labelValues {
-		if len(labelValue) == 0 {
-			// Skip empty label values, since they may break RPC communication with vmselect
-			continue
-		}
-		if err := ctx.writeString(labelValue); err != nil {
-			return fmt.Errorf("cannot write labelValue %q: %w", labelValue, err)
-		}
-	}
-	// Send 'end of label values' marker
-	if err := ctx.writeString(""); err != nil {
-		return fmt.Errorf("cannot send 'end of response' marker")
-	}
-	return nil
-}
-
-func (s *Server) processTagValueSuffixes(ctx *vmselectRequestCtx) error {
-	s.tagValueSuffixesRequests.Inc()
-
-	// read request
-	accountID, projectID, err := ctx.readAccountIDProjectID()
-	if err != nil {
-		return err
-	}
-	tr, err := ctx.readTimeRange()
-	if err != nil {
-		return err
-	}
-	if err := ctx.readDataBufBytes(maxLabelValueSize); err != nil {
-		return fmt.Errorf("cannot read tagKey: %w", err)
-	}
-	tagKey := string(ctx.dataBuf)
-	if err := ctx.readDataBufBytes(maxLabelValueSize); err != nil {
-		return fmt.Errorf("cannot read tagValuePrefix: %w", err)
-	}
-	tagValuePrefix := string(ctx.dataBuf)
-	delimiter, err := ctx.readByte()
-	if err != nil {
-		return fmt.Errorf("cannot read delimiter: %w", err)
-	}
-	maxSuffixes, err := ctx.readLimit()
-	if err != nil {
-		return fmt.Errorf("cannot read maxTagValueSuffixes: %d", err)
-	}
-	if maxSuffixes <= 0 || maxSuffixes > s.limits.MaxTagValueSuffixes {
-		maxSuffixes = s.limits.MaxTagValueSuffixes
-	}
-
-	if err := s.beginConcurrentRequest(ctx); err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	defer s.endConcurrentRequest()
-
-	// Execute the request
-	suffixes, err := s.api.TagValueSuffixes(ctx.qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, ctx.deadline)
-	if err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-
-	if len(suffixes) >= s.limits.MaxTagValueSuffixes {
-		err := fmt.Errorf("more than %d tag value suffixes found "+
-			"for tagKey=%q, tagValuePrefix=%q, delimiter=%c on time range %s; "+
-			"either narrow down the query or increase -search.max* command-line flag value; see https://docs.victoriametrics.com/#resource-usage-limits",
-			s.limits.MaxTagValueSuffixes, tagKey, tagValuePrefix, delimiter, tr.String())
-		return ctx.writeErrorMessage(err)
-	}
-
-	// Send an empty error message to vmselect.
-	if err := ctx.writeString(""); err != nil {
-		return fmt.Errorf("cannot send empty error message: %w", err)
-	}
-
-	// Send suffixes to vmselect.
-	// Suffixes may contain empty string, so prepend suffixes with suffixCount.
-	if err := ctx.writeUint64(uint64(len(suffixes))); err != nil {
-		return fmt.Errorf("cannot write suffixesCount: %w", err)
-	}
-	for i, suffix := range suffixes {
-		if err := ctx.writeString(suffix); err != nil {
-			return fmt.Errorf("cannot write suffix #%d: %w", i+1, err)
-		}
 	}
 	return nil
 }
@@ -865,14 +692,6 @@ func (s *Server) processSketchCacheStatus(ctx *vmselectRequestCtx) error {
 	if err := ctx.readSearchQuery(); err != nil {
 		return err
 	}
-	if err := ctx.readDataBufBytes(maxLabelValueSize); err != nil {
-		return fmt.Errorf("cannot read focusLabel: %w", err)
-	}
-	focusLabel := string(ctx.dataBuf)
-	topN, err := ctx.readUint32()
-	if err != nil {
-		return fmt.Errorf("cannot read topN: %w", err)
-	}
 
 	if err := s.beginConcurrentRequest(ctx); err != nil {
 		return ctx.writeErrorMessage(err)
@@ -880,7 +699,7 @@ func (s *Server) processSketchCacheStatus(ctx *vmselectRequestCtx) error {
 	defer s.endConcurrentRequest()
 
 	// Execute the request
-	status, err := s.api.SketchCacheStatus(ctx.qt, &ctx.sq, focusLabel, int(topN), ctx.deadline)
+	status, err := s.api.SketchCacheStatus(ctx.qt, &ctx.sq, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -898,9 +717,6 @@ func writeSketchCacheStatus(ctx *vmselectRequestCtx, status *sketch.SketchCacheS
 	if err := ctx.writeUint64(status.TotalSeries); err != nil {
 		return fmt.Errorf("cannot write totalSeries to vmselect: %w", err)
 	}
-	if err := ctx.writeUint64(status.TotalLabelValuePairs); err != nil {
-		return fmt.Errorf("cannot write totalLabelValuePairs to vmselect: %w", err)
-	}
 	return nil
 }
 
@@ -917,36 +733,8 @@ func (s *Server) processSearchAndEval(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
-	// Initiaialize the search.
-	startTime := time.Now()
-	bi, err := s.api.InitSearch(ctx.qt, &ctx.sq, ctx.deadline)
-	if err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	s.indexSearchDuration.UpdateDuration(startTime)
-	defer bi.MustClose()
-
-	// Send empty error message to vmselect.
-	if err := ctx.writeString(""); err != nil {
-		return fmt.Errorf("cannot send empty error message: %w", err)
-	}
-
-	// Send found blocks to vmselect.
-	blocksRead := 0
-	for bi.NextBlock(&ctx.ms) {
-		blocksRead++
-		s.metricSketchesRead.Inc()
-		s.metricRowsRead.Add(ctx.ms.SketchCache.RowsCount())
-
-		ctx.dataBuf = ctx.ms.Marshal(ctx.dataBuf[:0])
-		if err := ctx.writeDataBufBytes(); err != nil {
-			return fmt.Errorf("cannot send MetricSketch: %w", err)
-		}
-	}
-	if err := bi.Error(); err != nil {
-		return fmt.Errorf("search error: %w", err)
-	}
-	ctx.qt.Printf("sent %d blocks to vmselect", blocksRead)
+	// Evaluate and send the result to vmselect.
+	// TODO: implement this
 
 	// Send 'end of response' marker
 	if err := ctx.writeString(""); err != nil {
