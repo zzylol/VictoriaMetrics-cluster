@@ -167,3 +167,23 @@ func (s *Sketch) SearchTimeSeriesCoverage(start, end int64, mns []string, funcNa
 	}
 	return srs, true, nil
 }
+
+func (s *Sketch) DeleteSeries(qt *querytracer.Tracer, MetricNameRaws [][]byte, deadline uint64) (int, error) {
+	WG.Add(1)
+	defer WG.Done()
+
+	var total int = 0
+	var count int = 0
+	var err error
+	for _, metricNameRaw := range MetricNameRaws {
+		mn := storage.GetMetricName()
+		defer storage.PutMetricName(mn)
+		if err := mn.UnmarshalRaw(metricNameRaw); err != nil {
+			err = fmt.Errorf("cannot umarshal MetricNameRaw %q: %w", metricNameRaw, err)
+		}
+		mn.SortTags()
+		count, err = s.sketchCache.DeleteSeries(mn)
+		total += count
+	}
+	return total, err
+}

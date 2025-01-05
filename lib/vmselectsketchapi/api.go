@@ -8,22 +8,6 @@ import (
 
 // API must implement vmselect API.
 type API interface {
-	// InitSearch initialize series search for the given sq.
-	//
-	// The returned BlockIterator must be closed with MustClose to free up resources when it is no longer needed.
-	InitSearch(qt *querytracer.Tracer, sq *sketch.SearchQuery, deadline uint64) (BlockIterator, error)
-
-	// SearchMetricNames returns metric names matching the given sq.
-	SearchMetricNames(qt *querytracer.Tracer, sq *sketch.SearchQuery, deadline uint64) ([]string, error)
-
-	// LabelValues returns values for labelName label acorss series matching the given sq.
-	LabelValues(qt *querytracer.Tracer, sq *sketch.SearchQuery, labelName string, maxLabelValues int, deadline uint64) ([]string, error)
-
-	// TagValueSuffixes returns tag value suffixes for the given args.
-	TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr sketch.TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxSuffixes int, deadline uint64) ([]string, error)
-
-	// LabelNames returns lable names for series matching the given sq.
-	LabelNames(qt *querytracer.Tracer, sq *sketch.SearchQuery, maxLableNames int, deadline uint64) ([]string, error)
 
 	// SeriesCount returns the number of series for the given (accountID, projectID).
 	SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, deadline uint64) (uint64, error)
@@ -36,6 +20,8 @@ type API interface {
 
 	// RegisterMetricNames registers the given mrs in the sketch.
 	RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadline uint64) error
+
+	RegisterMetricNameFuncName(qt *querytracer.Tracer, mn *storage.MetricName, funcName string, window int64, item_window int64) error
 }
 
 // BlockIterator must iterate through series blocks found by VMSelect.InitSearch.

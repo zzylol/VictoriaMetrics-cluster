@@ -548,3 +548,18 @@ func (vs *VMSketches) RegisterMetricNames(mrs []storage.MetricRow) error {
 	}
 	return nil
 }
+
+func (vs *VMSketches) DeleteSeries(mn *storage.MetricName) (int, error) {
+	hash := MetricNameHash(mn)
+
+	series := vs.series.getByHash(hash, mn)
+	if series == nil {
+		return 0, nil
+	}
+	i := uint64(series.id) & uint64(vs.series.size-1)
+	vs.series.locks[i].Lock()
+	vs.series.hashes[i].del(hash, series.id)
+	delete(vs.series.series[i], series.id)
+	vs.series.locks[i].Unlock()
+	return 1, nil
+}

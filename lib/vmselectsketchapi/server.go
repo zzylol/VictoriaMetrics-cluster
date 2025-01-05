@@ -904,44 +904,6 @@ func writeSketchCacheStatus(ctx *vmselectRequestCtx, status *sketch.SketchCacheS
 	return nil
 }
 
-func (s *Server) processSearchMetricNames(ctx *vmselectRequestCtx) error {
-	s.searchMetricNamesRequests.Inc()
-
-	// Read request.
-	if err := ctx.readSearchQuery(); err != nil {
-		return err
-	}
-
-	if err := s.beginConcurrentRequest(ctx); err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-	defer s.endConcurrentRequest()
-
-	// Execute request.
-	metricNames, err := s.api.SearchMetricNames(ctx.qt, &ctx.sq, ctx.deadline)
-	if err != nil {
-		return ctx.writeErrorMessage(err)
-	}
-
-	// Send empty error message to vmselect.
-	if err := ctx.writeString(""); err != nil {
-		return fmt.Errorf("cannot send empty error message: %w", err)
-	}
-
-	// Send response.
-	metricNamesCount := len(metricNames)
-	if err := ctx.writeUint64(uint64(metricNamesCount)); err != nil {
-		return fmt.Errorf("cannot send metricNamesCount: %w", err)
-	}
-	for i, metricName := range metricNames {
-		if err := ctx.writeString(metricName); err != nil {
-			return fmt.Errorf("cannot send metricName #%d: %w", i+1, err)
-		}
-	}
-	ctx.qt.Printf("sent %d series to vmselect", len(metricNames))
-	return nil
-}
-
 func (s *Server) processSearchAndEval(ctx *vmselectRequestCtx) error {
 	s.searchRequests.Inc()
 

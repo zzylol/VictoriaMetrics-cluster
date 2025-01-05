@@ -3,13 +3,10 @@ package servers
 import (
 	"flag"
 	"fmt"
-	"net/http"
 	"sync"
 	"time"
 
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/cgroup"
-	"github.com/zzylol/VictoriaMetrics-cluster/lib/fasttime"
-	"github.com/zzylol/VictoriaMetrics-cluster/lib/httpserver"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/logger"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/memory"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/querytracer"
@@ -66,70 +63,6 @@ type vmsketchAPI struct {
 	s *sketch.Sketch
 }
 
-func (api *vmsketchAPI) InitSearch(qt *querytracer.Tracer, sq *sketch.SearchQuery, deadline uint64) (vmselectsketchapi.BlockIterator, error) {
-	tr := sq.GetTimeRange()
-	if err := checkTimeRange(api.s, tr); err != nil {
-		return nil, err
-	}
-	maxMetrics := getMaxMetrics(sq)
-	if len(sq.MetricNameRaws) == 0 {
-		return nil, fmt.Errorf("missing metric names")
-	}
-	bi := getBlockIterator()
-	bi.sr.Init(qt, api.s, tfss, tr, maxMetrics, deadline)
-	if err := bi.sr.Error(); err != nil {
-		bi.MustClose()
-		return nil, err
-	}
-	return bi, nil
-}
-
-func (api *vmsketchAPI) SearchMetricNames(qt *querytracer.Tracer, sq *sketch.SearchQuery, deadline uint64) ([]string, error) {
-	tr := sq.GetTimeRange()
-	maxMetrics := getMaxMetrics(sq)
-	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
-	if err != nil {
-		return nil, err
-	}
-	if len(tfss) == 0 {
-		return nil, fmt.Errorf("missing tag filters")
-	}
-	return api.s.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline)
-}
-
-func (api *vmsketchAPI) LabelValues(qt *querytracer.Tracer, sq *sketch.SearchQuery, labelName string, maxLabelValues int, deadline uint64) ([]string, error) {
-	tr := sq.GetTimeRange()
-	maxMetrics := getMaxMetrics(sq)
-	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
-	if err != nil {
-		return nil, err
-	}
-	return api.s.SearchLabelValuesWithFiltersOnTimeRange(qt, sq.AccountID, sq.ProjectID, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
-}
-
-func (api *vmsketchAPI) TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte,
-	maxSuffixes int, deadline uint64) ([]string, error) {
-	suffixes, err := api.s.SearchTagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, deadline)
-	if err != nil {
-		return nil, err
-	}
-	if len(suffixes) >= maxSuffixes {
-		return nil, fmt.Errorf("more than -search.maxTagValueSuffixesPerSearch=%d suffixes returned; "+
-			"either narrow down the search or increase -search.maxTagValueSuffixesPerSearch command-line flag value", maxSuffixes)
-	}
-	return suffixes, nil
-}
-
-func (api *vmsketchAPI) LabelNames(qt *querytracer.Tracer, sq *sketch.SearchQuery, maxLabelNames int, deadline uint64) ([]string, error) {
-	tr := sq.GetTimeRange()
-	maxMetrics := getMaxMetrics(sq)
-	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
-	if err != nil {
-		return nil, err
-	}
-	return api.s.SearchLabelNamesWithFiltersOnTimeRange(qt, sq.AccountID, sq.ProjectID, tfss, tr, maxLabelNames, maxMetrics, deadline)
-}
-
 func (api *vmsketchAPI) SeriesCount(_ *querytracer.Tracer, accountID, projectID uint32, deadline uint64) (uint64, error) {
 	return api.s.GetSeriesCount(accountID, projectID, deadline)
 }
@@ -139,16 +72,10 @@ func (api *vmsketchAPI) SketchCacheStatus(qt *querytracer.Tracer, sq *sketch.Sea
 }
 
 func (api *vmsketchAPI) DeleteSeries(qt *querytracer.Tracer, sq *sketch.SearchQuery, deadline uint64) (int, error) {
-	tr := sq.GetTimeRange()
-	maxMetrics := getMaxMetrics(sq)
-	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
-	if err != nil {
-		return 0, err
+	if len(sq.MetricNameRaws) == 0 {
+		return 0, fmt.Errorf("missing metric names")
 	}
-	if len(tfss) == 0 {
-		return 0, fmt.Errorf("missing tag filters")
-	}
-	return api.s.DeleteSeries(qt, tfss, maxMetrics)
+	return api.s.DeleteSeries(qt, sq.MetricNameRaws, deadline)
 }
 
 func (api *vmsketchAPI) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, _ uint64) error {
@@ -162,60 +89,6 @@ func (api *vmsketchAPI) RegisterMetricNameFuncName(qt *querytracer.Tracer, mn *s
 	qtChild := qt.NewChild("RegisterMetricNameFuncName=%q", funcName)
 	qtChild.Done()
 	return api.s.RegisterMetricNameFuncName(mn, funcName, window, item_window)
-}
-
-func (api *vmsketchAPI) setupTfss(qt *querytracer.Tracer, sq *sketch.SearchQuery, tr sketch.TimeRange, maxMetrics int, deadline uint64) ([]*storage.TagFilters, error) {
-	tfss := make([]*storage.TagFilters, 0, len(sq.TagFilterss))
-	accountID := sq.AccountID
-	projectID := sq.ProjectID
-	for _, tagFilters := range sq.TagFilterss {
-		tfs := storage.NewTagFilters(accountID, projectID)
-		for i := range tagFilters {
-			tf := &tagFilters[i]
-			if string(tf.Key) == "__graphite__" {
-				query := tf.Value
-				qtChild := qt.NewChild("searching for series matching __graphite__=%q", query)
-				paths, err := api.s.SearchGraphitePaths(qtChild, accountID, projectID, tr, query, maxMetrics, deadline)
-				qtChild.Donef("found %d series", len(paths))
-				if err != nil {
-					return nil, fmt.Errorf("error when searching for Graphite paths for query %q: %w", query, err)
-				}
-				if len(paths) >= maxMetrics {
-					return nil, fmt.Errorf("more than %d time series match Graphite query %q; "+
-						"either narrow down the query or increase the corresponding -search.max* command-line flag value at vmselect nodes; "+
-						"see https://docs.victoriametrics.com/#resource-usage-limits", maxMetrics, query)
-				}
-				tfs.AddGraphiteQuery(query, paths, tf.IsNegative)
-				continue
-			}
-			if err := tfs.Add(tf.Key, tf.Value, tf.IsNegative, tf.IsRegexp); err != nil {
-				return nil, fmt.Errorf("cannot parse tag filter %s: %w", tf, err)
-			}
-		}
-		tfss = append(tfss, tfs)
-	}
-	return tfss, nil
-}
-
-// blockIterator implements vmselectsketchapi.BlockIterator
-type blockIterator struct {
-	sr sketch.Search
-}
-
-// checkTimeRange returns true if the given tr is denied for querying.
-func checkTimeRange(s *sketch.Sketch, tr sketch.TimeRange) error {
-	if !*denyQueriesOutsideRetention {
-		return nil
-	}
-	minAllowedTimestamp := int64(fasttime.UnixTimestamp()*1000) - retentionMsecs
-	if tr.MinTimestamp > minAllowedTimestamp {
-		return nil
-	}
-	return &httpserver.ErrorWithStatusCode{
-		Err: fmt.Errorf("the given time range %s is outside the allowed retention %.3f days according to -denyQueriesOutsideRetention",
-			&tr, float64(retentionMsecs)/(24*3600*1000)),
-		StatusCode: http.StatusServiceUnavailable,
-	}
 }
 
 func getMaxMetrics(sq *sketch.SearchQuery) int {
