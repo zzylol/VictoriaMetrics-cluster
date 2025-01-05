@@ -446,7 +446,7 @@ func (s *SketchInstances) PrintMinMaxTimeRange(mn *storage.MetricName, funcName 
 	}
 }
 
-func (vs *VMSketches) LookupMetricNameFuncNamesTimeRange(mn *storage.MetricName, funcNames []string, mint, maxt int64) (*SketchInstances, bool) {
+func (vs *VMSketches) LookupMetricNameFuncNamesTimeRange(mn *storage.MetricName, funcName string, mint, maxt int64) (*SketchInstances, bool) {
 	mn.SortTags()
 	hash := MetricNameHash(mn)
 	series := vs.series.getByHash(hash, mn)
@@ -455,9 +455,8 @@ func (vs *VMSketches) LookupMetricNameFuncNamesTimeRange(mn *storage.MetricName,
 		return nil, false
 	}
 	stypes := make([]SketchType, 0)
-	for _, funcName := range funcNames {
-		stypes = append(stypes, funcSketchMap[funcName]...)
-	}
+
+	stypes = append(stypes, funcSketchMap[funcName]...)
 
 	startt := mint
 	if series.oldestTimestamp != -1 && mint < series.oldestTimestamp {
