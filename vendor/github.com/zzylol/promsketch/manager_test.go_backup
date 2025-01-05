@@ -1,0 +1,60 @@
+package promsketch
+
+import (
+	"context"
+	"fmt"
+	"math/rand"
+	"testing"
+	"time"
+
+	"github.com/go-kit/log"
+	"github.com/zzylol/prometheus-sketch-VLDB/prometheus-sketches/model/labels"
+	"github.com/zzylol/prometheus-sketch-VLDB/prometheus-sketches/util/teststorage"
+)
+
+func TestManager(t *testing.T) {
+	fmt.Println("test promsketch manager")
+}
+
+func TestQuery(t *testing.T) {
+
+	m := NewManagerWithSketches(&ManagerOptions{
+		Context:    context.Background(),
+		Logger:     log.NewNopLogger(),
+		Appendable: teststorage.New(t),
+	}, &SketchConfig{
+		EH_univ_config:  EHUnivConfig{K: 20, Time_window_size: 1000000},
+		EH_kll_config:   EHKLLConfig{K: 100, Kll_k: 256, Time_window_size: 1000000},
+		Sampling_config: SamplingConfig{Sampling_rate: 0.05, Time_window_size: 1000000, Max_size: 50000},
+	})
+
+	// fake scrape
+	go func() {
+		lset := labels.FromStrings("fake_metric", "machine0")
+
+		total := 0
+		for {
+			t := int64(time.Now().UnixMicro())
+			value := float64(0)
+			for {
+				value = rand.NormFloat64() + 5000
+				if value >= 0 && value <= 10000 {
+					break
+				}
+			}
+			err := m.Sketches.SketchInsertDefinedRules(lset, t, value)
+			if err != nil {
+				fmt.Println("sketch insert error")
+				return
+			}
+			total = total + 1
+			if total%1000 == 0 {
+				fmt.Println(total)
+			}
+		}
+	}()
+
+	time.Sleep(10 * time.Second)
+	m.Run()
+	m.Stop()
+}

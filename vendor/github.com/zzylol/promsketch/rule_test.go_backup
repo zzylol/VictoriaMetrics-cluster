@@ -1,0 +1,77 @@
+package promsketch
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/go-kit/log"
+	"github.com/prometheus/common/model"
+	"github.com/stretchr/testify/require"
+	"github.com/zzylol/prometheus-sketch-VLDB/prometheus-sketches/model/labels"
+	"github.com/zzylol/prometheus-sketch-VLDB/prometheus-sketches/tsdb/chunkenc"
+	"github.com/zzylol/prometheus-sketch-VLDB/prometheus-sketches/util/teststorage"
+	"go.uber.org/atomic"
+)
+
+func TestAppend(t *testing.T) {
+	storage := *teststorage.New(t)
+	defer storage.Close()
+	ctx := context.Background()
+	metricName := "test_rule"
+	fakeMetric := "machine0"
+	outputLabel := labels.FromStrings(model.MetricNameLabel, metricName, "fake_metric", fakeMetric)
+	inputSize := 0
+
+	opts := &ManagerOptions{
+		Context:    ctx,
+		Logger:     log.NewNopLogger(),
+		Appendable: storage,
+		Queryable:  storage,
+	}
+	lset := labels.FromStrings("fake_metric", fakeMetric)
+	rule := SketchRule{
+		name:                metricName,
+		labels:              lset,
+		health:              atomic.NewString(string(HealthUnknown)),
+		evaluationTimestamp: atomic.NewTime(time.Time{}),
+		evaluationDuration:  atomic.NewDuration(0),
+		lastError:           atomic.NewError(nil),
+		Opts:                opts,
+	}
+
+	vector := Vector{Sample{10, 10}}
+	rule.AppendToStorage(opts.Context, vector)
+	vector = Vector{Sample{12, 12}}
+	rule.AppendToStorage(opts.Context, vector)
+	inputSize++
+	inputSize++
+	querier, err := opts.Queryable.Querier(0, 8000)
+	require.NoError(t, err)
+	defer querier.Close()
+
+	matcherName, err := labels.NewMatcher(labels.MatchEqual, model.MetricNameLabel, metricName)
+	require.NoError(t, err)
+	matcherMetric, err := labels.NewMatcher(labels.MatchEqual, "fake_metric", fakeMetric)
+	require.NoError(t, err)
+
+	seriesSet := querier.Select(ctx, true, nil, matcherName, matcherMetric)
+	result := make(map[int64]float64)
+	var labelsResult labels.Labels
+	var iterator chunkenc.Iterator
+	for seriesSet.Next() {
+		series := seriesSet.At()
+		seriesLabels := series.Labels()
+		labelsResult = seriesLabels
+		iterator := series.Iterator(iterator)
+		for iterator.Next() == chunkenc.ValFloat {
+			timestamp, value := iterator.At()
+			result[timestamp] = value
+		}
+	}
+
+	require.Equal(t, outputLabel, labelsResult)
+	require.Len(t, result, inputSize)
+	//expectation := "{__name__=\"test_rule\", fake_metric=\"machine0\"}"
+
+}

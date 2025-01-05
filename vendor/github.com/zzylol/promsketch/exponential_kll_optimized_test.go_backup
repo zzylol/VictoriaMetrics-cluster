@@ -1,0 +1,127 @@
+package promsketch
+
+import (
+	"fmt"
+	"testing"
+	"time"
+)
+
+// Test cost (compute + memory) and accuracy under sliding window
+func TestExpoHistogramKLLOptimizedGoogle(t *testing.T) {
+	readGoogleClusterData2009()
+	// readPowerDataset()
+	fmt.Println("Finished reading input timeseries")
+	query_window_size := int64(1000000)
+	total_length := int64(2000000)
+	cost_query_interval_kll_optimized := int64(200000)
+
+	// Create a scenario
+	// Query these subwindows every 1000 data sample insertions
+	t1 := make([]int64, 0)
+	t2 := make([]int64, 0)
+	t1 = append(t1, int64(0))
+	t2 = append(t2, query_window_size-1)
+
+	for i := 1; i <= 10; i++ {
+		t1 = append(t1, query_window_size/10*int64(i-1))
+		t2 = append(t2, query_window_size/10*int64(i)-1)
+	}
+
+	start_t := t1[len(t1)-1]
+
+	for i := 1; i <= 10; i++ {
+		t1 = append(t1, start_t+query_window_size/10/10*int64(i-1))
+		t2 = append(t2, start_t+query_window_size/10/10*int64(i)-1)
+	}
+
+	start_t = t1[len(t1)-1]
+	for i := 1; i <= 10; i++ {
+		t1 = append(t1, start_t+query_window_size/10/10/10*int64(i-1))
+		t2 = append(t2, start_t+query_window_size/10/10/10*int64(i)-1)
+	}
+
+	fmt.Println("t1:", t1)
+	fmt.Println("t2:", t2)
+
+	phi := 0.9
+
+	ground_truth := make([][]float64, total_length)
+	for t := 0; t < int(total_length); t++ {
+		ground_truth[t] = make([]float64, len(t1))
+	}
+
+	// PromSketch, EHKLL
+	k_input := []int64{10, 20, 50, 100, 200, 500, 1000}
+	// kllk_input := []int{64, 128, 256, 512, 1024}
+	kllk_input := []int{64}
+	for _, k := range k_input {
+		for _, kll_k := range kllk_input {
+			fmt.Println("EHKLL", k, kll_k)
+
+			// ehkll_rank_error := make([]float64, 0)
+			ehkll := ExpoInitKLLOptimized(k, kll_k, query_window_size)
+
+			total_compute := 0.0
+			insert_compute := 0.0
+			total_total_query := 0.0
+			total_kstest_error := make([]float64, len(t1))
+			total_query := make([]float64, len(t1))
+			for t := int64(0); t < total_length; t++ {
+				start := time.Now()
+				ehkll.Update(t, cases[0].vec[t].F)
+				elapsed := time.Since(start)
+				insert_compute += float64(elapsed.Microseconds())
+				// fmt.Println("avg insert time per item:", insert_compute/float64(t+1), "us")
+				// fmt.Println("bucket num:", ehkll.arr_count, ehkll.s_count)
+
+				if t == total_length-1 || (t >= query_window_size-1 && (t+1)%cost_query_interval_kll_optimized == 0) {
+					for j := range len(t1) {
+						total_total_query += 1
+						total_query[j] += 1
+						start_t := t1[j] + t - query_window_size + 1
+						end_t := t2[j] + t - query_window_size + 1
+						fmt.Println("start_t, end_t:", start_t, end_t)
+						start := time.Now()
+						merged_kll, samples := ehkll.QueryIntervalMergeKLL(start_t, end_t)
+						// q_value := float64(0)
+						if merged_kll != nil && samples == nil {
+							cdf := merged_kll.CDF()
+							_ = cdf.Query(phi)
+						} else if merged_kll == nil && samples != nil {
+							_ = quantile(phi, *samples)
+						}
+
+						elapsed := time.Since(start)
+						total_compute += float64(elapsed.Microseconds())
+
+						// rank_err := getRankError(phi, start_t, end_t, q_value)
+						kstest := 0.0
+						if merged_kll != nil {
+							kstest = KolmogorovSmirnovStatisticKLL(start_t, end_t, merged_kll)
+						} else {
+							kstest = 0
+						}
+						rank_err := kstest
+
+						fmt.Println("kstest error:", rank_err)
+						total_kstest_error[j] += kstest
+						// ehkll_rank_error = append(ehkll_rank_error, rank_err)
+
+					}
+
+				}
+			}
+			// fmt.Println("KSTest error:", ehkll_rank_error)
+
+			fmt.Println("insert compute/item:", insert_compute/float64(total_length), "us")
+			fmt.Println("query compute/query:", total_compute/total_total_query, "us")
+			fmt.Println("total compute:", total_compute+insert_compute, "us")
+			fmt.Println("memory:", ehkll.GetMemoryKB(), "KB")
+			fmt.Println("exact baseline memory:", float64(total_length)*8/1024, "KB")
+			for j := 0; j < len(t1); j++ {
+				fmt.Println("window size, avg kstest error:", t2[j]-t1[j]+1, total_kstest_error[j]/total_query[j])
+			}
+		}
+	}
+
+}
