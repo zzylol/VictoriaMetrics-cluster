@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/zzylol/VictoriaMetrics-cluster/app/vmselect/searchutils"
@@ -29,8 +30,8 @@ type Sketch struct {
 	tooBigTimestampRows   atomic.Uint64
 	invalidRawMetricNames atomic.Uint64
 
-	timeseriesRepopulated atomic.Uint64
-	timeseriesPreCreated  atomic.Uint64
+	TimeseriesRepopulated atomic.Uint64
+	TimeseriesPreCreated  atomic.Uint64
 	newTimeseriesCreated  atomic.Uint64
 
 	// idbCurr contains the currently used indexdb.
@@ -151,7 +152,7 @@ func (s *Sketch) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.Metri
 	return s.sketchCache.RegisterMetricNames(mrs)
 }
 
-// Result is a single timeseries result.
+// Result is a single Timeseries result.
 //
 // Search returns Result slice.
 type SketchResult struct {
@@ -198,14 +199,15 @@ func (s *Sketch) SearchTimeSeriesCoverage(start, end int64, mn *storage.MetricNa
 	return &SketchResult{sketchIns: sketchIns, MetricName: mn}, true, nil
 }
 
-func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, start, end int64, funcNameID uint32, maxMetrics int) (isCovered bool, err error) {
+func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, start, end int64, funcNameID uint32, sargs []float64, maxMetrics int) (results []*Timeseries, isCovered bool, err error) {
 	srs := &SketchResults{}
 
 	if len(MetricNameRaws) == 0 {
-		return false, nil
+		return nil, false, nil
 	}
 
 	srs.sketchInss = make([]SketchResult, 0)
+	funcName := GetFuncName(funcNameID)
 	for _, metricNameRaw := range MetricNameRaws {
 		mn := storage.GetMetricName()
 		defer storage.PutMetricName(mn)
@@ -213,16 +215,145 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 			err = fmt.Errorf("cannot umarshal MetricNameRaw %q: %w", metricNameRaw, err)
 		}
 		mn.SortTags()
-		sr, isCovered, err := s.SearchTimeSeriesCoverage(start, end, mn, GetFuncName(funcNameID), maxMetrics)
+		sr, isCovered, err := s.SearchTimeSeriesCoverage(start, end, mn, funcName, maxMetrics)
 		if err != nil || isCovered == false {
-			return isCovered, err
+			return nil, isCovered, err
 		}
 		srs.sketchInss = append(srs.sketchInss, *sr)
 	}
 
-	srs.RunParallel(qt) // TODO
-
+	srs.RunParallel(qt) // TODO: implement below to RunParallel
+	f := func(sr *SketchResult, workerID uint) error {
+		ts_results := make([]*Timeseries, 0)
+		for _, sr := range srs.sketchInss {
+			value := sr.Eval(sr.MetricName, funcName, sargs, start, end, end)
+			ts_results = append(ts_results, &Timeseries{MetricName: *sr.MetricName, Values: []float64{value}, Timestamps: []int64{end}, denyReuse: true})
+		}
+		return nil
+	}
+	return ts_results, true, nil
 	// TODO: define return value type: each MetricName has a float64 value
+}
+
+// These functions don't change physical meaning of input time series,
+// so they don't drop metric name
+var rollupFuncsKeepMetricName = map[string]bool{
+	"avg_over_time":         true,
+	"default_rollup":        true,
+	"first_over_time":       true,
+	"geomean_over_time":     true,
+	"hoeffding_bound_lower": true,
+	"hoeffding_bound_upper": true,
+	"holt_winters":          true,
+	"iqr_over_time":         true,
+	"last_over_time":        true,
+	"max_over_time":         true,
+	"median_over_time":      true,
+	"min_over_time":         true,
+	"mode_over_time":        true,
+	"predict_linear":        true,
+	"quantile_over_time":    true,
+	"quantiles_over_time":   true,
+	"rollup":                true,
+	"rollup_candlestick":    true,
+	"timestamp_with_name":   true,
+}
+
+type TimeseriesWithPadding struct {
+	tss []*Timeseries
+
+	// The padding prevents false sharing on widespread platforms with
+	// 128 mod (cache line size) = 0 .
+	_ [128 - unsafe.Sizeof([]*Timeseries{})%128]byte
+}
+
+type TimeseriesByWorkerID struct {
+	byWorkerID []TimeseriesWithPadding
+}
+
+func (tsw *TimeseriesByWorkerID) reset() {
+	byWorkerID := tsw.byWorkerID
+	for i := range byWorkerID {
+		byWorkerID[i].tss = nil
+	}
+}
+
+func getTimeseriesByWorkerID() *TimeseriesByWorkerID {
+	v := timeseriesByWorkerIDPool.Get()
+	if v == nil {
+		return &TimeseriesByWorkerID{
+			byWorkerID: make([]TimeseriesWithPadding, MaxWorkers()),
+		}
+	}
+	return v.(*TimeseriesByWorkerID)
+}
+
+func putTimeseriesByWorkerID(tsw *TimeseriesByWorkerID) {
+	tsw.reset()
+	timeseriesByWorkerIDPool.Put(tsw)
+}
+
+var timeseriesByWorkerIDPool sync.Pool
+
+func doRollupForTimeseriesSketch(funcName string, keepMetricNames bool, rargs []interface{}, rc *rollupConfig, tsDst *Timeseries, sr *SketchResult, sharedTimestamps []int64) uint64 {
+
+	tsDst.MetricName.CopyFrom(sr.MetricName)
+	if len(rc.TagValue) > 0 {
+		tsDst.MetricName.AddTag("rollup", rc.TagValue)
+	}
+	if !keepMetricNames && !rollupFuncsKeepMetricName[funcName] {
+		tsDst.MetricName.ResetMetricGroup()
+	}
+	var samplesScanned uint64
+	tsDst.Values, samplesScanned = rc.DoSketch(tsDst.Values[:0], rargs, sr)
+	tsDst.Timestamps = sharedTimestamps
+	tsDst.denyReuse = true
+	return samplesScanned
+}
+
+func (rc *rollupConfig) DoSketch(dstValues []float64, rargs []interface{}, sr *SketchResult) ([]float64, uint64) {
+	return rc.doInternalSketch(dstValues, nil, rargs, sr)
+}
+
+func (rc *rollupConfig) doInternalSketch(dstValues []float64, tsm *timeseriesMap, rargs []interface{}, sr *SketchResult) ([]float64, uint64) {
+
+	value := sr.Eval(MetricName, funcName, sargs, tStart, tEnd, tEnd)
+	// fmt.Println("evaled value=", value)
+
+	dstValues = append(dstValues, value)
+
+	return dstValues, samplesScanned
+}
+
+func evalRollupSketchCache(qt *querytracer.Tracer, funcName string, keepMetricNames bool, rargs []interface{}, srs *SketchResults, rcs []*rollupConfig,
+	sharedTimestamps []int64) ([]*Timeseries, error) {
+	qt = qt.NewChild("rollup %s() over %d series; rollupConfigs=%s", funcName, srs.Len(), rcs)
+	defer qt.Done()
+
+	var samplesScannedTotal atomic.Uint64
+	tsw := getTimeseriesByWorkerID()
+	seriesByWorkerID := tsw.byWorkerID
+	seriesLen := srs.Len() // number of Timeseries for querying
+	err := srs.RunParallel(qt, func(sr *SketchResult, workerID uint) error {
+		for _, rc := range rcs {
+			var ts Timeseries
+			samplesScanned := doRollupForTimeseriesSketch(funcName, keepMetricNames, rargs, rc, &ts, sr, sharedTimestamps)
+			samplesScannedTotal.Add(samplesScanned)
+			seriesByWorkerID[workerID].tss = append(seriesByWorkerID[workerID].tss, &ts)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	tss := make([]*Timeseries, 0, seriesLen*len(rcs))
+	for i := range seriesByWorkerID {
+		tss = append(tss, seriesByWorkerID[i].tss...)
+	}
+	putTimeseriesByWorkerID(tsw)
+
+	qt.Printf("samplesScanned=%d", samplesScannedTotal.Load())
+	return tss, nil
 }
 
 var (
@@ -272,7 +403,7 @@ func (srs *SketchResults) mustClose() {
 	// put something to memory pool
 }
 
-type timeseriesWork struct {
+type TimeseriesWork struct {
 	mustStop *atomic.Bool
 	deadline searchutils.Deadline
 	sr       *SketchResult
@@ -280,7 +411,7 @@ type timeseriesWork struct {
 	err      error
 }
 
-func (tsw *timeseriesWork) do(workerID uint) error {
+func (tsw *TimeseriesWork) do(workerID uint) error {
 
 	if tsw.mustStop.Load() {
 		return nil
@@ -299,7 +430,7 @@ func (tsw *timeseriesWork) do(workerID uint) error {
 	return nil
 }
 
-func timeseriesWorker(qt *querytracer.Tracer, workChs []chan *timeseriesWork, workerID uint) {
+func TimeseriesWorker(qt *querytracer.Tracer, workChs []chan *TimeseriesWork, workerID uint) {
 
 	// Perform own work at first.
 	rowsProcessed := 0
@@ -367,7 +498,7 @@ func (srs *SketchResults) runParallel(qt *querytracer.Tracer, f func(sr *SketchR
 	}
 
 	var mustStop atomic.Bool
-	initTimeseriesWork := func(tsw *timeseriesWork, sr *SketchResult) {
+	initTimeseriesWork := func(tsw *TimeseriesWork, sr *SketchResult) {
 		tsw.deadline = srs.deadline
 		tsw.sr = sr
 		tsw.f = f
@@ -377,7 +508,7 @@ func (srs *SketchResults) runParallel(qt *querytracer.Tracer, f func(sr *SketchR
 
 	if maxWorkers == 1 || tswsLen == 1 {
 		// It is faster to process time series in the current goroutine.
-		var tsw timeseriesWork
+		var tsw TimeseriesWork
 
 		rowsProcessedTotal := 0
 		var err error
@@ -398,7 +529,7 @@ func (srs *SketchResults) runParallel(qt *querytracer.Tracer, f func(sr *SketchR
 	// which reduces the scalability on systems with many CPU cores.
 
 	// Prepare the work for workers.
-	tsws := make([]timeseriesWork, len(srs.sketchInss))
+	tsws := make([]TimeseriesWork, len(srs.sketchInss))
 	for i := range srs.sketchInss {
 		initTimeseriesWork(&tsws[i], &srs.sketchInss[i])
 	}
@@ -409,9 +540,9 @@ func (srs *SketchResults) runParallel(qt *querytracer.Tracer, f func(sr *SketchR
 		workers = maxWorkers
 	}
 	itemsPerWorker := (len(tsws) + workers - 1) / workers
-	workChs := make([]chan *timeseriesWork, workers)
+	workChs := make([]chan *TimeseriesWork, workers)
 	for i := range workChs {
-		workChs[i] = make(chan *timeseriesWork, itemsPerWorker)
+		workChs[i] = make(chan *TimeseriesWork, itemsPerWorker)
 	}
 
 	// Spread work among workers.
@@ -430,7 +561,7 @@ func (srs *SketchResults) runParallel(qt *querytracer.Tracer, f func(sr *SketchR
 		wg.Add(1)
 		qtChild := qt.NewChild("worker #%d", i)
 		go func(workerID uint) {
-			timeseriesWorker(qtChild, workChs, workerID)
+			TimeseriesWorker(qtChild, workChs, workerID)
 			qtChild.Done()
 			wg.Done()
 		}(uint(i))
