@@ -27,6 +27,7 @@ import (
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/logger"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/memory"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/querytracer"
+	"github.com/zzylol/VictoriaMetrics-cluster/lib/sketch"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/storage"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/stringsutil"
 )
@@ -1704,9 +1705,19 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 		rollupResultCacheV.PutSeries(qt, ec, expr, window, rvs)
 	}
 	return rvs, nil
+}
 
-func copy_ts_results(tss []*netstorage.Timeseries) (ts_results []*timeseries) {
-	return nil
+func copy_ts_results(tss []*sketch.Timeseries) (ts_results []*timeseries) {
+	ts_results = make([]*timeseries, len(tss))
+	for i, ts := range tss {
+		ts_results[i] = &timeseries{
+			MetricName: ts.MetricName,
+			Values:     ts.Values,
+			Timestamps: ts.Timestamps,
+			denyReuse:  ts.DenyReuse,
+		}
+	}
+	return ts_results
 }
 
 // evalRollupFuncNoCache calculates the given rf with the given lookbehind window.
@@ -1771,8 +1782,9 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	mns := rss.GetMetricNames()
 
 	fmt.Println("VM ProcessSearchQuery Time:", since.Seconds(), "s")
+
 	sketch.NewSearchQuery()
-	ts_results, isCovered, err := netstorage.SearchAndEvalSketchCache(minTimestamp, ec.End, mns, funcName, ec.MaxSeries, ec.Deadline)
+	ts_results, isCovered, err := netstorage.SearchAndEvalSketchCache(minTimestamp, ec.End, mns, funcName, args, ec.MaxSeries, ec.Deadline)
 	if err == nil && isCovered {
 		output_ts_results := copy_ts_results(ts_results)
 		return output_ts_results, err

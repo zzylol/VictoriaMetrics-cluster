@@ -920,28 +920,6 @@ func (sn *sketchNode) processSearchMetricNamesOnConn(bc *handshake.BufferedConn,
 	return metricNames, nil
 }
 
-type Timeseries struct {
-	MetricName storage.MetricName
-	Values     []float64
-	Timestamps []int64
-
-	// Whether the timeseries may be re-used.
-	// Timeseries may be re-used only if their members own values
-	// they refer to.
-	denyReuse bool
-}
-
-func (ts *Timeseries) Reset() {
-	if ts.denyReuse {
-		*ts = Timeseries{}
-		return
-	}
-
-	ts.MetricName.Reset()
-	ts.Values = ts.Values[:0]
-	ts.Timestamps = ts.Timestamps[:0]
-}
-
 type sketchNodesRequest struct {
 	denyPartialResponse bool
 	resultsCh           chan rpcResultSketch
@@ -980,24 +958,9 @@ func startSketchNodesRequest(qt *querytracer.Tracer, sns []*sketchNode, denyPart
 	}
 }
 
-func populateSqTenantTokensIfNeededSketch(sq *sketch.SearchQuery) error {
-	if !sq.IsMultiTenant {
-		return nil
-	}
-
-	if len(sq.TagFilterss) == 0 {
-		return nil
-	}
-
-	tts, tfss := ApplyTenantFiltersToTagFiltersSketch(sq.TenantTokens, sq.TagFilterss)
-	sq.TenantTokens = tts
-	sq.TagFilterss = tfss
-	return nil
-}
-
 func processAndEvalSketchBlocks(qt *querytracer.Tracer, sns []*sketchNode, denyPartialResponse bool, sq *sketch.SearchQuery,
 	processBlock func(mb *storage.MetricBlock, workerID uint) error, deadline searchutils.Deadline,
-) ([]*Timeseries, bool, error) {
+) ([]*sketch.Timeseries, bool, error) {
 	// Make sure that processBlock is no longer called after the exit from processBlocks() function.
 	// Use per-worker WaitGroup instead of a shared WaitGroup in order to avoid inter-CPU contention,
 	// which may significantly slow down the rate of processBlock calls on multi-CPU systems.
@@ -1086,7 +1049,7 @@ func processAndEvalSketchBlocks(qt *querytracer.Tracer, sns []*sketchNode, denyP
 /*
 There will be network connections
 */
-func SearchAndEvalSketchCache(qt *querytracer.Tracer, denyPartialResponse bool, sqs *sketch.SearchQuery, maxMetrics int, deadline searchutils.Deadline) ([]*Timeseries, bool, error) {
+func SearchAndEvalSketchCache(qt *querytracer.Tracer, denyPartialResponse bool, sqs *sketch.SearchQuery, maxMetrics int, deadline searchutils.Deadline) ([]*sketch.Timeseries, bool, error) {
 	qt = qt.NewChild("try to search adn eval query from sketch cache: %s", sqs)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -1098,7 +1061,7 @@ func SearchAndEvalSketchCache(qt *querytracer.Tracer, denyPartialResponse bool, 
 		MinTimestamp: sqs.MinTimestamp,
 		MaxTimestamp: sqs.MaxTimestamp,
 	}
-	sns := getsketchNodes()
+	sns := getSketchNodes()
 
 	processBlock := func(workerID int) error {
 

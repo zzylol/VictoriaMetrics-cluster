@@ -22,11 +22,11 @@ type Timeseries struct {
 	// Whether the Timeseries may be re-used.
 	// Timeseries may be re-used only if their members own values
 	// they refer to.
-	denyReuse bool
+	DenyReuse bool
 }
 
 func (ts *Timeseries) Reset() {
-	if ts.denyReuse {
+	if ts.DenyReuse {
 		*ts = Timeseries{}
 		return
 	}
@@ -46,7 +46,7 @@ func (ts *Timeseries) CopyFromShallowTimestamps(src *Timeseries) {
 	ts.Values = append(ts.Values[:0], src.Values...)
 	ts.Timestamps = src.Timestamps
 
-	ts.denyReuse = true
+	ts.DenyReuse = true
 }
 
 func (ts *Timeseries) CopyFromMetricNames(src *Timeseries) {
@@ -55,12 +55,12 @@ func (ts *Timeseries) CopyFromMetricNames(src *Timeseries) {
 	ts.Values = src.Values
 	ts.Timestamps = src.Timestamps
 
-	ts.denyReuse = true
+	ts.DenyReuse = true
 }
 
 func (ts *Timeseries) CopyShallow(src *Timeseries) {
 	*ts = *src
-	ts.denyReuse = true
+	ts.DenyReuse = true
 }
 
 func getTimeseries() *Timeseries {
@@ -143,7 +143,7 @@ func unmarshalTimeseriesFast(src []byte) ([]*Timeseries, error) {
 	tss := make([]*Timeseries, tssLen)
 	for i := range tss {
 		var ts Timeseries
-		ts.denyReuse = true
+		ts.DenyReuse = true
 		ts.Timestamps = timestamps
 		tss[i] = &ts
 	}
