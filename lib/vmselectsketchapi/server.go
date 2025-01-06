@@ -787,7 +787,11 @@ func (s *Server) processSearchAndEval(ctx *vmselectRequestCtx) error {
 		return fmt.Errorf("cannot execute searchAndEval: %w", err)
 	}
 
-	if err := ctx.writeUint64(uint64(isCovered)); err != nil {
+	isCovered_64 := uint64(0)
+	if isCovered {
+		isCovered_64 = 1
+	}
+	if err := ctx.writeUint64(isCovered_64); err != nil {
 		return fmt.Errorf("cannot write isCovered to vmselect: %w", err)
 	}
 
