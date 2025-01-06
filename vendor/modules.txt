@@ -466,8 +466,6 @@ github.com/google/go-cmp/cmp/internal/diff
 github.com/google/go-cmp/cmp/internal/flags
 github.com/google/go-cmp/cmp/internal/function
 github.com/google/go-cmp/cmp/internal/value
-# github.com/google/gopacket v1.1.19
-## explicit; go 1.12
 # github.com/google/s2a-go v0.1.8
 ## explicit; go 1.20
 github.com/google/s2a-go
@@ -702,41 +700,6 @@ github.com/valyala/quicktemplate
 # github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1
 ## explicit; go 1.15
 github.com/xrash/smetrics
-# github.com/zzylol/VictoriaMetrics-sketches v0.1.0
-## explicit; go 1.22.5
-github.com/zzylol/VictoriaMetrics-sketches/lib/backup/backupnames
-github.com/zzylol/VictoriaMetrics-sketches/lib/blockcache
-github.com/zzylol/VictoriaMetrics-sketches/lib/bloomfilter
-github.com/zzylol/VictoriaMetrics-sketches/lib/buildinfo
-github.com/zzylol/VictoriaMetrics-sketches/lib/bytesutil
-github.com/zzylol/VictoriaMetrics-sketches/lib/cgroup
-github.com/zzylol/VictoriaMetrics-sketches/lib/decimal
-github.com/zzylol/VictoriaMetrics-sketches/lib/encoding
-github.com/zzylol/VictoriaMetrics-sketches/lib/encoding/zstd
-github.com/zzylol/VictoriaMetrics-sketches/lib/fastnum
-github.com/zzylol/VictoriaMetrics-sketches/lib/fasttime
-github.com/zzylol/VictoriaMetrics-sketches/lib/filestream
-github.com/zzylol/VictoriaMetrics-sketches/lib/flagutil
-github.com/zzylol/VictoriaMetrics-sketches/lib/fs
-github.com/zzylol/VictoriaMetrics-sketches/lib/fs/fscore
-github.com/zzylol/VictoriaMetrics-sketches/lib/logger
-github.com/zzylol/VictoriaMetrics-sketches/lib/lrucache
-github.com/zzylol/VictoriaMetrics-sketches/lib/memory
-github.com/zzylol/VictoriaMetrics-sketches/lib/mergeset
-github.com/zzylol/VictoriaMetrics-sketches/lib/prompb
-github.com/zzylol/VictoriaMetrics-sketches/lib/prompbmarshal
-github.com/zzylol/VictoriaMetrics-sketches/lib/promutils
-github.com/zzylol/VictoriaMetrics-sketches/lib/protoparser/prometheus
-github.com/zzylol/VictoriaMetrics-sketches/lib/querytracer
-github.com/zzylol/VictoriaMetrics-sketches/lib/regexutil
-github.com/zzylol/VictoriaMetrics-sketches/lib/slicesutil
-github.com/zzylol/VictoriaMetrics-sketches/lib/snapshot/snapshotutil
-github.com/zzylol/VictoriaMetrics-sketches/lib/storage
-github.com/zzylol/VictoriaMetrics-sketches/lib/stringsutil
-github.com/zzylol/VictoriaMetrics-sketches/lib/syncwg
-github.com/zzylol/VictoriaMetrics-sketches/lib/timeutil
-github.com/zzylol/VictoriaMetrics-sketches/lib/uint64set
-github.com/zzylol/VictoriaMetrics-sketches/lib/workingsetcache
 # github.com/zzylol/go-kll v0.0.0-20240604180517-e15a688e6ebe
 ## explicit; go 1.22.3
 github.com/zzylol/go-kll
@@ -746,16 +709,7 @@ github.com/zzylol/metricsql
 github.com/zzylol/metricsql/binaryop
 # github.com/zzylol/prometheus-sketch-VLDB/prometheus-sketches v0.0.0-20240903204742-c589c9446e48
 ## explicit; go 1.22.3
-github.com/zzylol/prometheus-sketch-VLDB/prometheus-sketches/model/labels
-github.com/zzylol/prometheus-sketch-VLDB/prometheus-sketches/promql/parser/posrange
-github.com/zzylol/prometheus-sketch-VLDB/prometheus-sketches/util/annotations
 github.com/zzylol/prometheus-sketch-VLDB/prometheus-sketches/util/zeropool
-# github.com/zzylol/prometheus-sketch-VLDB/uniform-sampling-caching/prometheus v0.0.0-20240903204742-c589c9446e48
-## explicit; go 1.22.3
-github.com/zzylol/prometheus-sketch-VLDB/uniform-sampling-caching/prometheus/model/labels
-# github.com/zzylol/promsketch v0.4.2
-## explicit; go 1.22.5
-github.com/zzylol/promsketch
 # go.opencensus.io v0.24.0
 ## explicit; go 1.13
 go.opencensus.io

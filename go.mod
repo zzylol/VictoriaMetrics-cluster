@@ -7,6 +7,9 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.16.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.8.0
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.5.0
+	github.com/DataDog/sketches-go v1.4.6
+	github.com/OneOfOne/xxhash v1.2.8
+	github.com/RoaringBitmap/roaring/v2 v2.3.4
 	github.com/VictoriaMetrics/easyproto v0.1.4
 	github.com/VictoriaMetrics/fastcache v1.12.2
 	github.com/VictoriaMetrics/metrics v1.35.1
@@ -15,6 +18,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.41
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.69.0
 	github.com/bmatcuk/doublestar/v4 v4.7.1
+	github.com/cespare/xxhash v1.1.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/cheggaaa/pb/v3 v3.1.5
 	github.com/ergochat/readline v0.1.3
@@ -26,6 +30,7 @@ require (
 	github.com/klauspost/compress v1.17.11
 	github.com/mattn/go-isatty v0.0.20
 	github.com/prometheus/prometheus v0.300.1
+	github.com/spaolacci/murmur3 v1.1.0
 	github.com/urfave/cli/v2 v2.27.5
 	github.com/valyala/fastjson v1.6.4
 	github.com/valyala/fastrand v1.1.0
@@ -33,6 +38,9 @@ require (
 	github.com/valyala/gozstd v1.21.2
 	github.com/valyala/histogram v1.2.0
 	github.com/valyala/quicktemplate v1.8.0
+	github.com/zzylol/go-kll v0.0.0-20240604180517-e15a688e6ebe
+	github.com/zzylol/metricsql v0.1.1
+	github.com/zzylol/prometheus-sketch-VLDB/prometheus-sketches v0.0.0-20240903204742-c589c9446e48
 	golang.org/x/net v0.31.0
 	golang.org/x/oauth2 v0.24.0
 	golang.org/x/sys v0.28.0
@@ -50,12 +58,9 @@ require (
 	cloud.google.com/go/monitoring v1.21.2 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.10.0 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.3.2 // indirect
-	github.com/DataDog/sketches-go v1.4.6 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.25.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.49.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.49.0 // indirect
-	github.com/OneOfOne/xxhash v1.2.8 // indirect
-	github.com/RoaringBitmap/roaring/v2 v2.3.4 // indirect
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b // indirect
 	github.com/aws/aws-sdk-go v1.55.5 // indirect
@@ -78,7 +83,6 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.14.3 // indirect
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
-	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cncf/xds/go v0.0.0-20240905190251-b4127c9b8d78 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.5 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
@@ -91,7 +95,6 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang-jwt/jwt/v5 v5.2.1 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/s2a-go v0.1.8 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
@@ -118,16 +121,9 @@ require (
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
-	github.com/zzylol/VictoriaMetrics-sketches v0.1.0 // indirect
-	github.com/zzylol/go-kll v0.0.0-20240604180517-e15a688e6ebe // indirect
-	github.com/zzylol/metricsql v0.1.1 // indirect
-	github.com/zzylol/prometheus-sketch-VLDB/prometheus-sketches v0.0.0-20240903204742-c589c9446e48 // indirect
-	github.com/zzylol/prometheus-sketch-VLDB/uniform-sampling-caching/prometheus v0.0.0-20240903204742-c589c9446e48 // indirect
-	github.com/zzylol/promsketch v0.4.2 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/collector/pdata v1.20.0 // indirect
 	go.opentelemetry.io/collector/semconv v0.114.0 // indirect

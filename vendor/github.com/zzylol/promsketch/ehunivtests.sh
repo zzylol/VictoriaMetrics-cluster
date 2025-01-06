@@ -1,2 +1,0 @@
-#!/bin/bash
-/usr/local/go/bin/go test -timeout 0  -run TestExpoHistogramUniv -v ExponentialHistogram_test.go ExponentialHistogram.go  UnivMon.go utils.go CountMinSketch.go CountSketch.go heap.go  > ./microbenchmark_results/ehuniv.txt

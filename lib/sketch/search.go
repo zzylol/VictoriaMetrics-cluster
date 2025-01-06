@@ -6,7 +6,6 @@ import (
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/encoding"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/slicesutil"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/stringsutil"
-	"github.com/zzylol/promsketch"
 )
 
 // Search is a search for time series.
@@ -33,7 +32,7 @@ type MetricSketch struct {
 	MetricName []byte
 
 	// SketchCache is a Sketch Cache for the given MetricName
-	SketchCache promsketch.VMSketchSeries
+	SketchCache VMSketchSeries
 }
 
 // TagFilter represents a single tag filter from SearchQuery.
