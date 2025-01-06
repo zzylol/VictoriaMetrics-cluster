@@ -136,6 +136,8 @@ type SearchQuery struct {
 
 	FuncNameID uint32
 
+	Args []float64 // rollup function arguments TODO: add to marshal and unmarshal methods
+
 	// The maximum number of time series the search query can return.
 	MaxMetrics int
 }

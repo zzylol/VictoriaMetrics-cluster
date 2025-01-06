@@ -23,7 +23,7 @@ type API interface {
 
 	RegisterMetricNameFuncName(qt *querytracer.Tracer, mrs []storage.MetricRow, funcName string, window int64, item_window int64, deadline uint64) error
 
-	SearchAndEval(qt *querytracer.Tracer, sq *sketch.SearchQuery, deadline uint64) (*[]sketch.Timeseries, bool, error)
+	SearchAndEval(qt *querytracer.Tracer, sq *sketch.SearchQuery, deadline uint64) ([]*sketch.Timeseries, bool, error)
 }
 
 // BlockIterator must iterate through series blocks found by VMSelect.InitSearch.
