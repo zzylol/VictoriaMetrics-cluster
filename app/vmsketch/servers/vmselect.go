@@ -67,7 +67,7 @@ func (api *vmsketchAPI) SeriesCount(_ *querytracer.Tracer, accountID, projectID 
 	return api.s.GetSeriesCount(accountID, projectID, deadline)
 }
 
-func (api *vmsketchAPI) SketchCacheStatus(qt *querytracer.Tracer, sq *sketch.SearchQuery, focusLabel string, topN int, deadline uint64) (*sketch.SketchCacheStatus, error) {
+func (api *vmsketchAPI) SketchCacheStatus(qt *querytracer.Tracer, sq *sketch.SearchQuery, deadline uint64) (*sketch.SketchCacheStatus, error) {
 	return api.s.GetSketchCacheStatus(qt, deadline)
 }
 

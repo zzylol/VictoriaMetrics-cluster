@@ -782,7 +782,7 @@ func (s *Server) processSearchAndEval(ctx *vmselectRequestCtx) error {
 	defer s.endConcurrentRequest()
 
 	// Evaluate and send the result to vmselect.
-	results, isCovered, err := s.api.SearchAndEval(ctx.qt, &ctx.sq, ctx.deadline)
+	tss, isCovered, err := s.api.SearchAndEval(ctx.qt, &ctx.sq, ctx.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot execute searchAndEval: %w", err)
 	}
@@ -795,7 +795,7 @@ func (s *Server) processSearchAndEval(ctx *vmselectRequestCtx) error {
 		return fmt.Errorf("cannot write isCovered to vmselect: %w", err)
 	}
 
-	// TODO: write results
+	// TODO: write tss to vmselect
 
 	// Send 'end of response' marker
 	if err := ctx.writeString(""); err != nil {
