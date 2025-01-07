@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -58,29 +57,20 @@ func newSketchNode(ms *metrics.Set, group *sketchNodesGroup, addr string) *sketc
 
 		concurrentQueries: ms.NewCounter(fmt.Sprintf(`vm_concurrent_queries{name="vmselect", addr=%q}`, addr)),
 
-		registerMetricNamesRequests: ms.NewCounter(fmt.Sprintf(`vm_requests_sketch_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-		registerMetricNamesErrors:   ms.NewCounter(fmt.Sprintf(`sketchNodevm_request_errors_sketch_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-		deleteSeriesRequests:        ms.NewCounter(fmt.Sprintf(`vm_requests_sketch_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-		deleteSeriesErrors:          ms.NewCounter(fmt.Sprintf(`sketchNodevm_request_errors_sketch_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-		labelNamesRequests:          ms.NewCounter(fmt.Sprintf(`vm_requests_sketch_total{action="labelNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-		labelNamesErrors:            ms.NewCounter(fmt.Sprintf(`sketchNodevm_request_errors_sketch_total{action="labelNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-		labelValuesRequests:         ms.NewCounter(fmt.Sprintf(`vm_requests_sketch_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-		labelValuesErrors:           ms.NewCounter(fmt.Sprintf(`sketchNodevm_request_errors_sketch_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-		tagValueSuffixesRequests:    ms.NewCounter(fmt.Sprintf(`vm_requests_sketch_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-		tagValueSuffixesErrors:      ms.NewCounter(fmt.Sprintf(`sketchNodevm_request_errors_sketch_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-		tsdbStatusRequests:          ms.NewCounter(fmt.Sprintf(`vm_requests_sketch_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-		tsdbStatusErrors:            ms.NewCounter(fmt.Sprintf(`sketchNodevm_request_errors_sketch_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-		seriesCountRequests:         ms.NewCounter(fmt.Sprintf(`vm_requests_sketch_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-		seriesCountErrors:           ms.NewCounter(fmt.Sprintf(`sketchNodevm_request_errors_sketch_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-		searchMetricNamesRequests:   ms.NewCounter(fmt.Sprintf(`vm_requests_sketch_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-		searchMetricNamesErrors:     ms.NewCounter(fmt.Sprintf(`sketchNodevm_request_errors_sketch_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-		searchRequests:              ms.NewCounter(fmt.Sprintf(`vm_requests_sketch_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-		searchErrors:                ms.NewCounter(fmt.Sprintf(`sketchNodevm_request_errors_sketch_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-		tenantsRequests:             ms.NewCounter(fmt.Sprintf(`vm_requests_sketch_total{action="tenants", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-		tenantsErrors:               ms.NewCounter(fmt.Sprintf(`sketchNodevm_request_errors_sketch_total{action="tenants", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		registerMetricNamesRequests:        ms.NewCounter(fmt.Sprintf(`vm_requests_sketch_metric_name_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		registerMetricNamesErrors:          ms.NewCounter(fmt.Sprintf(`sketchNode_vm_request_errors_sketch_metric_name_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		registerMetricNameFuncNameRequests: ms.NewCounter(fmt.Sprintf(`vm_requests_sketch_metric_name_func_name_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		registerMetricNameFuncNameErrors:   ms.NewCounter(fmt.Sprintf(`sketchNode_vm_request_errors_sketch_metric_name_func_name_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 
-		metricBlocksRead: ms.NewCounter(fmt.Sprintf(`vm_metric_blocks_read_sketch_total{name="vmselect", addr=%q}`, addr)),
-		metricRowsRead:   ms.NewCounter(fmt.Sprintf(`vm_metric_rows_read_sketch_total{name="vmselect", addr=%q}`, addr)),
+		deleteSeriesRequests:      ms.NewCounter(fmt.Sprintf(`vm_requests_sketch_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		deleteSeriesErrors:        ms.NewCounter(fmt.Sprintf(`sketchNodevm_request_errors_sketch_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		sketchCacheStatusRequests: ms.NewCounter(fmt.Sprintf(`vm_requests_sketch_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		sketchCacheStatusErrors:   ms.NewCounter(fmt.Sprintf(`vm_request_errors_sketch_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		seriesCountRequests:       ms.NewCounter(fmt.Sprintf(`vm_requests_sketch_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		seriesCountErrors:         ms.NewCounter(fmt.Sprintf(`sketchNodevm_request_errors_sketch_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		searchAndEvalRequests:     ms.NewCounter(fmt.Sprintf(`vm_requests_sketch_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		searchAndEvalErrors:       ms.NewCounter(fmt.Sprintf(`sketchNodevm_request_errors_sketch_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		metricRowsRead:            ms.NewCounter(fmt.Sprintf(`vm_metric_rows_read_sketch_total{name="vmselect", addr=%q}`, addr)),
 	}
 	return sn
 }
@@ -185,35 +175,23 @@ type sketchNode struct {
 	// The number of RegisterMetricNames request errors to sketchNode.
 	registerMetricNamesErrors *metrics.Counter
 
+	// The number of RegisterMetricNames requests to sketchNode.
+	registerMetricNameFuncNameRequests *metrics.Counter
+
+	// The number of RegisterMetricNames request errors to sketchNode.
+	registerMetricNameFuncNameErrors *metrics.Counter
+
 	// The number of DeleteSeries requests to sketchNode.
 	deleteSeriesRequests *metrics.Counter
 
 	// The number of DeleteSeries request errors to sketchNode.
 	deleteSeriesErrors *metrics.Counter
 
-	// The number of requests to labelNames.
-	labelNamesRequests *metrics.Counter
-
-	// The number of errors during requests to labelNames.
-	labelNamesErrors *metrics.Counter
-
-	// The number of requests to labelValues.
-	labelValuesRequests *metrics.Counter
-
-	// The number of errors during requests to labelValuesOnTimeRange.
-	labelValuesErrors *metrics.Counter
-
-	// The number of requests to tagValueSuffixes.
-	tagValueSuffixesRequests *metrics.Counter
-
-	// The number of errors during requests to tagValueSuffixes.
-	tagValueSuffixesErrors *metrics.Counter
-
 	// The number of requests to tsdb status.
-	tsdbStatusRequests *metrics.Counter
+	sketchCacheStatusRequests *metrics.Counter
 
 	// The number of errors during requests to tsdb status.
-	tsdbStatusErrors *metrics.Counter
+	sketchCacheStatusErrors *metrics.Counter
 
 	// The number of requests to seriesCount.
 	seriesCountRequests *metrics.Counter
@@ -221,29 +199,14 @@ type sketchNode struct {
 	// The number of errors during requests to seriesCount.
 	seriesCountErrors *metrics.Counter
 
-	// The number of searchMetricNames requests to sketchNode.
-	searchMetricNamesRequests *metrics.Counter
-
-	// The number of searchMetricNames errors to sketchNode.
-	searchMetricNamesErrors *metrics.Counter
-
 	// The number of search requests to sketchNode.
-	searchRequests *metrics.Counter
+	searchAndEvalRequests *metrics.Counter
 
 	// The number of search request errors to sketchNode.
-	searchErrors *metrics.Counter
-
-	// The number of metric blocks read.
-	metricBlocksRead *metrics.Counter
+	searchAndEvalErrors *metrics.Counter
 
 	// The number of read metric rows.
 	metricRowsRead *metrics.Counter
-
-	// The number of list tenants requests to sketchNode.
-	tenantsRequests *metrics.Counter
-
-	// The number of list tenants errors to sketchNode.
-	tenantsErrors *metrics.Counter
 }
 
 func (sn *sketchNode) registerMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadline searchutils.Deadline) error {
@@ -436,39 +399,6 @@ func writeTimeRangeSketch(bc *handshake.BufferedConn, tr sketch.TimeRange) error
 	return nil
 }
 
-func (sn *sketchNode) getTenantsOnConn(bc *handshake.BufferedConn, tr sketch.TimeRange) ([]string, error) {
-	if err := writeTimeRangeSketch(bc, tr); err != nil {
-		return nil, err
-	}
-	if err := bc.Flush(); err != nil {
-		return nil, fmt.Errorf("cannot flush request to conn: %w", err)
-	}
-
-	// Read response error.
-	buf, err := readBytes(nil, bc, maxErrorMessageSize)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read error message: %w", err)
-	}
-	if len(buf) > 0 {
-		return nil, newErrRemote(buf)
-	}
-
-	// Read response
-	var tenants []string
-	for {
-		var err error
-		buf, err = readBytes(buf[:0], bc, maxTenantValueSize)
-		if err != nil {
-			return nil, fmt.Errorf("cannot read tenant #%d: %w", len(tenants), err)
-		}
-		if len(buf) == 0 {
-			// Reached the end of the response
-			return tenants, nil
-		}
-		tenants = append(tenants, string(buf))
-	}
-}
-
 func (sn *sketchNode) getTagValueSuffixesOnConn(bc *handshake.BufferedConn, accountID, projectID uint32,
 	tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxSuffixes int,
 ) ([]string, error) {
@@ -521,92 +451,6 @@ func (sn *sketchNode) getTagValueSuffixesOnConn(bc *handshake.BufferedConn, acco
 	return suffixes, nil
 }
 
-// Tenants returns tenants until the given deadline.
-func TenantsSketch(qt *querytracer.Tracer, tr sketch.TimeRange, deadline searchutils.Deadline) ([]string, error) {
-	qt = qt.NewChild("get tenants on timeRange=%s", &tr)
-	defer qt.Done()
-	if deadline.Exceeded() {
-		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
-	}
-
-	// Send the query to all the storage nodes in parallel.
-	type nodeResult struct {
-		tenants []string
-		err     error
-	}
-	sns := getSketchNodes()
-	// Deny partial responses when obtaining the list of tenants, since partial tenants have little sense.
-	snr := startSketchNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *sketchNode) any {
-		sn.tenantsRequests.Inc()
-		tenants, err := sn.getTenants(qt, tr, deadline)
-		if err != nil {
-			sn.tenantsErrors.Inc()
-			err = fmt.Errorf("cannot get tenants from vmstorage %s: %w", sn.connPool.Addr(), err)
-		}
-		return &nodeResult{
-			tenants: tenants,
-			err:     err,
-		}
-	})
-
-	// Collect results
-	var tenants []string
-	_, err := snr.collectResults(partialLabelValuesResults, func(result any) error {
-		nr := result.(*nodeResult)
-		if nr.err != nil {
-			return nr.err
-		}
-		tenants = append(tenants, nr.tenants...)
-		return nil
-	})
-	qt.Printf("get %d non-duplicated tenants", len(tenants))
-	if err != nil {
-		return nil, fmt.Errorf("cannot fetch tenants from vmstorage nodes: %w", err)
-	}
-
-	// Deduplicate tenants
-	tenants = deduplicateStrings(tenants)
-	qt.Printf("get %d unique tenants after de-duplication", len(tenants))
-
-	sort.Strings(tenants)
-	qt.Printf("sort %d tenants", len(tenants))
-	return tenants, nil
-}
-
-func (sn *sketchNode) getTenants(qt *querytracer.Tracer, tr sketch.TimeRange, deadline searchutils.Deadline) ([]string, error) {
-	var tenants []string
-	f := func(bc *handshake.BufferedConn) error {
-		result, err := sn.getTenantsOnConn(bc, tr)
-		if err != nil {
-			return err
-		}
-		tenants = result
-		return nil
-	}
-	if err := sn.execOnConnWithPossibleRetry(qt, "tenants_v1", f, deadline); err != nil {
-		return nil, err
-	}
-	return tenants, nil
-}
-
-func (sn *sketchNode) getTagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string,
-	delimiter byte, maxSuffixes int, deadline searchutils.Deadline,
-) ([]string, error) {
-	var suffixes []string
-	f := func(bc *handshake.BufferedConn) error {
-		ss, err := sn.getTagValueSuffixesOnConn(bc, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes)
-		if err != nil {
-			return err
-		}
-		suffixes = ss
-		return nil
-	}
-	if err := sn.execOnConnWithPossibleRetry(qt, "tagValueSuffixes_v4", f, deadline); err != nil {
-		return nil, err
-	}
-	return suffixes, nil
-}
-
 func (sn *sketchNode) getSketchCacheStatusOnConn(bc *handshake.BufferedConn, requestData []byte, focusLabel string, topN int) (*sketch.SketchCacheStatus, error) {
 	// Send the request to sn.
 	if err := writeBytes(bc, requestData); err != nil {
@@ -641,13 +485,9 @@ func readSketchCacheStatus(bc *handshake.BufferedConn) (*sketch.SketchCacheStatu
 	if err != nil {
 		return nil, fmt.Errorf("cannot read totalSeries: %w", err)
 	}
-	totalLabelValuePairs, err := readUint64(bc)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read totalLabelValuePairs: %w", err)
-	}
+
 	status := &sketch.SketchCacheStatus{
-		TotalSeries:          totalSeries,
-		TotalLabelValuePairs: totalLabelValuePairs,
+		TotalSeries: totalSeries,
 	}
 	return status, nil
 }
@@ -1037,7 +877,7 @@ func processSearchAndEvalSketch(qt *querytracer.Tracer, sns []*sketchNode, denyP
 		wgs[i].wg.Wait()
 	}
 	if err != nil {
-		return isPartial, fmt.Errorf("cannot fetch query results from vmsketch nodes: %w", err)
+		return isPartial, false, fmt.Errorf("cannot fetch query results from vmsketch nodes: %w", err)
 	}
 	return ts_results, isCovered, nil
 }

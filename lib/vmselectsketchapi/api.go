@@ -25,19 +25,3 @@ type API interface {
 
 	SearchAndEval(qt *querytracer.Tracer, sq *sketch.SearchQuery, deadline uint64) ([]*sketch.Timeseries, bool, error)
 }
-
-// BlockIterator must iterate through series blocks found by VMSelect.InitSearch.
-//
-// MustClose must be called in order to free up allocated resources when BlockIterator is no longer needed.
-type BlockIterator interface {
-	// NextBlock reads the next block into mb.
-	//
-	// It returns true on success, false on error or if no blocks to read.
-	NextBlock(mb *sketch.MetricSketch) bool
-
-	// MustClose frees up resources allocated by BlockIterator.
-	MustClose()
-
-	// Error returns the last error occurred in NextBlock(), which returns false.
-	Error() error
-}
