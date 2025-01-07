@@ -958,7 +958,7 @@ func startSketchNodesRequest(qt *querytracer.Tracer, sns []*sketchNode, denyPart
 	}
 }
 
-func processAndEvalSketchBlocks(qt *querytracer.Tracer, sns []*sketchNode, denyPartialResponse bool, sq *sketch.SearchQuery,
+func processSearchAndEvalSketch(qt *querytracer.Tracer, sns []*sketchNode, denyPartialResponse bool, sq *sketch.SearchQuery,
 	processBlock func(mb *storage.MetricBlock, workerID uint) error, deadline searchutils.Deadline,
 ) ([]*sketch.Timeseries, bool, error) {
 	// Make sure that processBlock is no longer called after the exit from processBlocks() function.
@@ -1058,35 +1058,35 @@ func SearchAndEvalSketchCache(qt *querytracer.Tracer, denyPartialResponse bool, 
 		MaxTimestamp: sqs.MaxTimestamp,
 	}
 	sns := getSketchNodes()
+	snr := startSketchNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *sketchNode) any {
+		return execSketchSearchQuery(qt, sqs, func(qt *querytracer.Tracer, requestData []byte) any {
+			sn.searchAndEvalRequests.Inc()
+			ts_results, isCovered, err := sn.processSearchAndEvalSketch(qt, requestData, sqs.FocusLabel, sqs.TopN, deadline)
+			if err != nil {
+				sn.searchAndEvalErrors.Inc()
+				err = fmt.Errorf("cannot evaluate query from vmsketch %s: %w", sn.connPool.Addr(), err)
+			}
+			return tss
+		})
+	})
 
-	processBlock := func(workerID int) error {
-
-	}
-
-	ts_results, isCovered, err := processAndEvalSketchBlocks(qt, sns, denyPartialResponse, sqs, processBlock, deadline)
+	ts_results, isCovered, err := processSearchAndEvalSketch(qt, sns, denyPartialResponse, sqs, processBlock, deadline)
 
 	return ts_results, isCovered, err
 }
 
-// execSearchQuery calls cb for with marshaled requestData for each tenant in sq.
-func execSketchSearchQuery(qt *querytracer.Tracer, sq *sketch.SearchQuery, cb func(qt *querytracer.Tracer, requestData []byte, t sketch.TenantToken) any) []any {
+// execSketchSearchQuery calls cb for with marshaled requestData for each tenant in sq.
+func execSketchSearchQuery(qt *querytracer.Tracer, sq *sketch.SearchQuery, cb func(qt *querytracer.Tracer, requestData []byte) any) []any {
 	var requestData []byte
 	var results []any
 
-	for i := range sq.TenantTokens {
-		requestData = sq.TenantTokens[i].Marshal(requestData)
-		requestData = sq.MarshaWithoutTenant(requestData)
-		qtL := qt
-		if sq.IsMultiTenant && qt.Enabled() {
-			qtL = qt.NewChild("query for tenant: %s", sq.TenantTokens[i].String())
-		}
-		r := cb(qtL, requestData, sq.TenantTokens[i])
-		if sq.IsMultiTenant {
-			qtL.Done()
-		}
-		results = append(results, r)
-		requestData = requestData[:0]
-	}
+	requestData = sq.Marshal(requestData)
+	qtL := qt
+
+	r := cb(qtL, requestData)
+
+	results = append(results, r)
+	requestData = requestData[:0]
 
 	return results
 }
