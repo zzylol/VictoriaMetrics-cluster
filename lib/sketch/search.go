@@ -223,7 +223,7 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 }
 
 // NewSearchQuery creates new search query for the given args.
-func NewSearchQuery(accountID, projectID uint32, start, end int64, MetricNameRaws [][]byte, maxMetrics int) *SearchQuery {
+func NewSearchQuery(start, end int64, MetricNameRaws [][]byte, FuncNameID uint32, Args []float64, maxMetrics int) *SearchQuery {
 	if start < 0 {
 		// This is needed for https://github.com/zzylol/VictoriaMetrics-cluster/issues/5553
 		start = 0
@@ -235,6 +235,8 @@ func NewSearchQuery(accountID, projectID uint32, start, end int64, MetricNameRaw
 		MinTimestamp:   start,
 		MaxTimestamp:   end,
 		MetricNameRaws: MetricNameRaws,
+		FuncNameID:     FuncNameID,
+		Args:           Args,
 		MaxMetrics:     maxMetrics,
 	}
 }

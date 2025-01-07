@@ -58,6 +58,26 @@ var funcIDMap = map[uint32](string){
 	13: "quantile_over_time",
 }
 
+var IDFuncMap = map[string](uint32){
+	"avg_over_time":      1,
+	"count_over_time":    2,
+	"entropy_over_time":  3,
+	"max_over_time":      4,
+	"min_over_time":      5,
+	"stddev_over_time":   6,
+	"stdvar_over_time":   7,
+	"sum_over_time":      8,
+	"sum2_over_time":     9,
+	"distinct_over_time": 10,
+	"l1_over_time":       11,
+	"l2_over_time":       12,
+	"quantile_over_time": 13,
+}
+
+func GetFuncNameID(funcName string) uint32 {
+	return IDFuncMap[funcName]
+}
+
 func GetFuncName(funcNameID uint32) string {
 	return funcIDMap[funcNameID]
 }

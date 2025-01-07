@@ -995,10 +995,6 @@ func processAndEvalSketchBlocks(qt *querytracer.Tracer, sns []*sketchNode, denyP
 		return err
 	}
 
-	err := populateSqTenantTokensIfNeededSketch(sq)
-	if err != nil {
-		return false, err
-	}
 	// Send the query to all the sketch nodes in parallel.
 	snr := startSketchNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *sketchNode) any {
 		// Use a separate variable for each goroutine
@@ -1049,7 +1045,7 @@ func processAndEvalSketchBlocks(qt *querytracer.Tracer, sns []*sketchNode, denyP
 /*
 There will be network connections
 */
-func SearchAndEvalSketchCache(qt *querytracer.Tracer, denyPartialResponse bool, sqs *sketch.SearchQuery, maxMetrics int, deadline searchutils.Deadline) ([]*sketch.Timeseries, bool, error) {
+func SearchAndEvalSketchCache(qt *querytracer.Tracer, denyPartialResponse bool, sqs *sketch.SearchQuery, deadline searchutils.Deadline) ([]*sketch.Timeseries, bool, error) {
 	qt = qt.NewChild("try to search adn eval query from sketch cache: %s", sqs)
 	defer qt.Done()
 	if deadline.Exceeded() {

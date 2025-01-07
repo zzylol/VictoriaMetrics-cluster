@@ -603,6 +603,23 @@ func (rc *rollupConfig) String() string {
 	return fmt.Sprintf("timeRange=[%s..%s], step=%d, window=%d, points=%d", start, end, rc.Step, rc.Window, len(rc.Timestamps))
 }
 
+// Currently only parse 1 argNum or 2 argNum functions; not support quantiles_over_time yet
+func getRollupArgForSketches(args []interface{}, idx int) []float64 {
+	argNum := len(args)
+	switch argNum {
+	case 1:
+		return []float64{}
+	case 2:
+		phis, err := getScalar(args[0], 0)
+		if err != nil {
+			return nil
+		}
+		return []float64{phis[idx]}
+	default:
+		return nil
+	}
+}
+
 var (
 	nan = math.NaN()
 	inf = math.Inf(1)
