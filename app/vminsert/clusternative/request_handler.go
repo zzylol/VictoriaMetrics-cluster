@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/VictoriaMetrics/metrics"
 	"github.com/zzylol/VictoriaMetrics-cluster/app/vminsert/netstorage"
 	"github.com/zzylol/VictoriaMetrics-cluster/app/vminsert/relabel"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/auth"
@@ -12,7 +13,6 @@ import (
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/protoparser/clusternative/stream"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/storage"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/tenantmetrics"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -41,7 +41,12 @@ func insertRows(rows []storage.MetricRow) error {
 	ctx := netstorage.GetInsertCtx()
 	defer netstorage.PutInsertCtx(ctx)
 
+	ctx_sketch := netstorage.GetInsertCtxSketch()
+	defer netstorage.PutInsertCtxSketch(ctx_sketch)
+
 	ctx.Reset() // This line is required for initializing ctx internals.
+	ctx_sketch.Reset()
+
 	hasRelabeling := relabel.HasRelabeling()
 	var at auth.Token
 	var rowsPerTenant *metrics.Counter
@@ -57,15 +62,21 @@ func insertRows(rows []storage.MetricRow) error {
 			rowsPerTenant = rowsTenantInserted.Get(&at)
 		}
 		ctx.Labels = ctx.Labels[:0]
+		ctx_sketch.Labels = ctx_sketch.Labels[:0]
 		ctx.AddLabelBytes(nil, mn.MetricGroup)
+		ctx_sketch.AddLabelBytes(nil, mn.MetricGroup)
 		for j := range mn.Tags {
 			tag := &mn.Tags[j]
 			ctx.AddLabelBytes(tag.Key, tag.Value)
+			ctx_sketch.AddLabelBytes(tag.Key, tag.Value)
 		}
 		if !ctx.TryPrepareLabels(hasRelabeling) {
 			continue
 		}
 		if err := ctx.WriteDataPoint(&at, ctx.Labels, mr.Timestamp, mr.Value); err != nil {
+			return err
+		}
+		if err := ctx_sketch.WriteDataPointSketch(&at, ctx_sketch.Labels, mr.Timestamp, mr.Value); err != nil {
 			return err
 		}
 		rowsPerTenant.Inc()

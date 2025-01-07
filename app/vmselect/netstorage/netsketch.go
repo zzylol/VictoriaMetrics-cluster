@@ -1066,3 +1066,50 @@ func (snr *sketchNodesRequest) finishQueryTracer(qt *querytracer.Tracer, msg str
 	}
 	delete(snr.qts, qt)
 }
+
+// DeleteSeries deletes time series matching the given sq.
+func DeleteSeriesSketch(qt *querytracer.Tracer, sq *sketch.SearchQuery, deadline searchutils.Deadline) (int, error) {
+	qt = qt.NewChild("delete series: %s", sq)
+	defer qt.Done()
+
+	// Send the query to all the storage nodes in parallel.
+	type nodeResult struct {
+		deletedCount int
+		err          error
+	}
+	err := populateSqTenantTokensIfNeeded(sq)
+	if err != nil {
+		return 0, err
+	}
+	sns := getStorageNodes()
+	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
+		return execSearchQuery(qt, sq, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
+			sn.deleteSeriesRequests.Inc()
+			deletedCount, err := sn.deleteSeries(qt, requestData, deadline)
+			if err != nil {
+				sn.deleteSeriesErrors.Inc()
+			}
+			return &nodeResult{
+				deletedCount: deletedCount,
+				err:          err,
+			}
+		})
+	})
+
+	// Collect results
+	deletedTotal := 0
+	err = snr.collectAllResults(func(result any) error {
+		for _, cr := range result.([]any) {
+			nr := cr.(*nodeResult)
+			if nr.err != nil {
+				return nr.err
+			}
+			deletedTotal += nr.deletedCount
+		}
+		return nil
+	})
+	if err != nil {
+		return deletedTotal, fmt.Errorf("cannot delete time series on all the vmsketch nodes: %w", err)
+	}
+	return deletedTotal, nil
+}

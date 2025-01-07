@@ -37,7 +37,11 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 	ctx := netstorage.GetInsertCtx()
 	defer netstorage.PutInsertCtx(ctx)
 
+	ctx_sketch := netstorage.GetInsertCtxSketch()
+	defer netstorage.PutInsertCtxSketch(ctx_sketch)
+
 	ctx.Reset() // This line is required for initializing ctx internals.
+	ctx_sketch.Reset()
 	rowsTotal := 0
 	perTenantRows := make(map[auth.Token]int)
 	hasRelabeling := relabel.HasRelabeling()
@@ -45,32 +49,39 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 		ts := &timeseries[i]
 		rowsTotal += len(ts.Samples)
 		ctx.Labels = ctx.Labels[:0]
+		ctx_sketch.Labels = ctx_sketch.Labels[:0]
+
 		srcLabels := ts.Labels
 		for _, srcLabel := range srcLabels {
 			ctx.AddLabel(srcLabel.Name, srcLabel.Value)
+			ctx_sketch.AddLabel(srcLabel.Name, srcLabel.Value)
 		}
 		for j := range extraLabels {
 			label := &extraLabels[j]
 			ctx.AddLabel(label.Name, label.Value)
+			ctx_sketch.AddLabel(label.Name, label.Value)
 		}
 
 		if !ctx.TryPrepareLabels(hasRelabeling) {
 			continue
 		}
 		atLocal := ctx.GetLocalAuthToken(at)
-		sketchNodeIdx := ctx.GetSketchNodeIdx(atLocal, ctx.Labels)
+
+		sketchNodeIdx := ctx_sketch.GetSketchNodeIdx(atLocal, ctx.Labels)
 		storageNodeIdx := ctx.GetStorageNodeIdx(atLocal, ctx.Labels)
 		ctx.MetricNameBuf = ctx.MetricNameBuf[:0]
+		ctx_sketch.MetricNameBuf = ctx_sketch.MetricNameBuf[:0]
 		samples := ts.Samples
 		for i := range samples {
 			r := &samples[i]
 			if len(ctx.MetricNameBuf) == 0 {
 				ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ctx.Labels)
+				ctx_sketch.MetricNameBuf = storage.MarshalMetricNameRaw(ctx_sketch.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ctx_sketch.Labels)
 			}
 			if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, r.Timestamp, r.Value); err != nil {
 				return err
 			}
-			if err := ctx.WriteDataPointExtSketch(sketchNodeIdx, ctx.MetricNameBuf, r.Timestamp, r.Value); err != nil {
+			if err := ctx_sketch.WriteDataPointExtSketch(sketchNodeIdx, ctx_sketch.MetricNameBuf, r.Timestamp, r.Value); err != nil {
 				return err
 			}
 		}

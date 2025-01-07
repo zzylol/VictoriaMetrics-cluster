@@ -20,12 +20,13 @@ import (
 //
 // InsertCtx.Reset must be called before the first usage.
 type InsertCtx struct {
-	snb           *storageNodesBucket
-	sknb          *storageNodesBucket
+	snb *storageNodesBucket
+
 	Labels        sortedLabels
 	MetricNameBuf []byte
 
-	bufRowss  []bufRows
+	bufRowss []bufRows
+
 	labelsBuf []byte
 
 	relabelCtx relabel.Ctx
@@ -44,6 +45,19 @@ func (br *bufRows) reset() {
 }
 
 func (br *bufRows) pushTo(snb *storageNodesBucket, sn *storageNode) error {
+	bufLen := len(br.buf)
+	err := sn.push(snb, br.buf, br.rows)
+	br.reset()
+	if err != nil {
+		return &httpserver.ErrorWithStatusCode{
+			Err:        fmt.Errorf("cannot send %d bytes to storageNode %q: %w", bufLen, sn.dialer.Addr(), err),
+			StatusCode: http.StatusServiceUnavailable,
+		}
+	}
+	return nil
+}
+
+func (br *bufRows) pushToSketch(snb *sketchNodesBucket, sn *sketchNode) error {
 	bufLen := len(br.buf)
 	err := sn.push(snb, br.buf, br.rows)
 	br.reset()
