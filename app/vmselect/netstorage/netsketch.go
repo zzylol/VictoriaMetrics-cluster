@@ -864,6 +864,22 @@ func execSearchQuerySketch(qt *querytracer.Tracer, sq *sketch.SearchQuery, cb fu
 	return results
 }
 
+func (snr *sketchNodesRequest) collectAllResults(f func(result any) error) error {
+	sns := snr.sns
+	for i := 0; i < len(sns); i++ {
+		result := <-snr.resultsCh
+		if err := f(result.data); err != nil {
+			snr.finishQueryTracer(result.qt, fmt.Sprintf("error: %s", err))
+			// Immediately return the error to the caller without waiting for responses from other vmsketch nodes -
+			// they will be processed in brackground.
+			snr.finishQueryTracers("cancel request because of error in other vmsketch nodes")
+			return err
+		}
+		snr.finishQueryTracer(result.qt, "")
+	}
+	return nil
+}
+
 func (snr *sketchNodesRequest) collectResults(partialResultsCounter *metrics.Counter, f func(result any) error) (bool, error) {
 	sns := snr.sns
 	if len(sns) == 0 {
