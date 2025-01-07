@@ -9,9 +9,9 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"unsafe"
 
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/cespare/xxhash/v2"
 	"github.com/zzylol/VictoriaMetrics-cluster/app/vmselect/searchutils"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/fasttime"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/handshake"
@@ -46,7 +46,7 @@ func getSketchNodes() []*sketchNode {
 func newSketchNode(ms *metrics.Set, group *sketchNodesGroup, addr string) *sketchNode {
 	if _, _, err := net.SplitHostPort(addr); err != nil {
 		// Automatically add missing port.
-		addr += ":8401"
+		addr += ":8410"
 	}
 	// There is no need in requests compression, since vmselect requests are usually very small.
 	connPool := netutil.NewConnPool(ms, "vmselect", addr, handshake.VMSelectClient, 0, *vmstorageDialTimeout, *vmstorageUserTimeout)
@@ -540,15 +540,6 @@ func (sn *sketchNode) processSearchMetricNames(qt *querytracer.Tracer, requestDa
 	return metricNames, nil
 }
 
-func (sn *sketchNode) processSearchQuery(qt *querytracer.Tracer, requestData []byte, processBlock func(mb *storage.MetricBlock, workerID uint) error,
-	workerID uint, deadline searchutils.Deadline,
-) error {
-	f := func(bc *handshake.BufferedConn) error {
-		return sn.processSearchQueryOnConn(bc, requestData, processBlock, workerID)
-	}
-	return sn.execOnConnWithPossibleRetry(qt, "search_v7", f, deadline)
-}
-
 func (sn *sketchNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcName string, f func(bc *handshake.BufferedConn) error, deadline searchutils.Deadline) error {
 	qtChild := qt.NewChild("rpc call %s()", funcName)
 	err := sn.execOnConn(qtChild, funcName, f, deadline)
@@ -678,54 +669,6 @@ func (sn *sketchNode) getSeriesCountOnConn(bc *handshake.BufferedConn, accountID
 	return n, nil
 }
 
-func (sn *sketchNode) processSearchQueryOnConn(bc *handshake.BufferedConn, requestData []byte,
-	processBlock func(mb *storage.MetricBlock, workerID uint) error, workerID uint,
-) error {
-	// Send the request to sn.
-	if err := writeBytes(bc, requestData); err != nil {
-		return fmt.Errorf("cannot write requestData: %w", err)
-	}
-	if err := bc.Flush(); err != nil {
-		return fmt.Errorf("cannot flush requestData to conn: %w", err)
-	}
-
-	// Read response error.
-	buf, err := readBytes(nil, bc, maxErrorMessageSize)
-	if err != nil {
-		return fmt.Errorf("cannot read error message: %w", err)
-	}
-	if len(buf) > 0 {
-		return newErrRemote(buf)
-	}
-
-	// Read response. It may consist of multiple MetricBlocks.
-	blocksRead := 0
-	var mb sketch.MetricBlock // TODO: What to return from VMSketch?
-	for {
-		buf, err = readBytes(buf[:0], bc, maxMetricBlockSize)
-		if err != nil {
-			return fmt.Errorf("cannot read MetricBlock #%d: %w", blocksRead, err)
-		}
-		if len(buf) == 0 {
-			// Reached the end of the response
-			return nil
-		}
-		tail, err := mb.Unmarshal(buf)
-		if err != nil {
-			return fmt.Errorf("cannot unmarshal MetricBlock #%d from %d bytes: %w", blocksRead, len(buf), err)
-		}
-		if len(tail) != 0 {
-			return fmt.Errorf("non-empty tail after unmarshaling MetricBlock #%d: (len=%d) %q", blocksRead, len(tail), tail)
-		}
-		blocksRead++
-		sn.metricBlocksRead.Inc()
-		sn.metricRowsRead.Add(mb.Block.RowsCount())
-		if err := processBlock(&mb, workerID); err != nil {
-			return fmt.Errorf("cannot process MetricBlock #%d: %w", blocksRead, err)
-		}
-	}
-}
-
 func (sn *sketchNode) processSearchMetricNamesOnConn(bc *handshake.BufferedConn, requestData []byte) ([]string, error) {
 	// Send the requst to sn.
 	if err := writeBytes(bc, requestData); err != nil {
@@ -798,88 +741,59 @@ func startSketchNodesRequest(qt *querytracer.Tracer, sns []*sketchNode, denyPart
 	}
 }
 
-func processSearchAndEvalSketch(qt *querytracer.Tracer, sns []*sketchNode, denyPartialResponse bool, sq *sketch.SearchQuery,
-	processBlock func(mb *storage.MetricBlock, workerID uint) error, deadline searchutils.Deadline,
-) ([]*sketch.Timeseries, bool, error) {
-	// Make sure that processBlock is no longer called after the exit from processBlocks() function.
-	// Use per-worker WaitGroup instead of a shared WaitGroup in order to avoid inter-CPU contention,
-	// which may significantly slow down the rate of processBlock calls on multi-CPU systems.
-	type wgStruct struct {
-		// mu prevents from calling processBlock when stop is set to true
-		mu sync.Mutex
-
-		// wg is used for waiting until currently executed processBlock calls are finished.
-		wg sync.WaitGroup
-
-		// stop must be set to true when no more processBlocks calls should be made.
-		stop bool
-	}
-	type wgWithPadding struct {
-		wgStruct
-		// The padding prevents false sharing on widespread platforms with
-		// 128 mod (cache line size) = 0 .
-		_ [128 - unsafe.Sizeof(wgStruct{})%128]byte
-	}
-	wgs := make([]wgWithPadding, len(sns))
-	f := func(mb *storage.MetricBlock, workerID uint) error {
-		muwg := &wgs[workerID]
-		muwg.mu.Lock()
-		if muwg.stop {
-			muwg.mu.Unlock()
-			return nil
+func (sn *sketchNode) searchAndEval(qt *querytracer.Tracer, sq *sketch.SearchQuery, denyPartialResponse bool, deadline searchutils.Deadline) ([]*sketch.Timeseries, bool, error) {
+	var tss []*sketch.Timeseries
+	var isCovered bool
+	// TODO: handle requestData
+	f := func(bc *handshake.BufferedConn) error {
+		ts_results, covered, err := sn.searchAndEvalOnConn(bc, requestData, denyPartialResponse)
+		if err != nil {
+			return err
 		}
-		muwg.wg.Add(1)
-		muwg.mu.Unlock()
-		err := processBlock(mb, workerID)
-		muwg.wg.Done()
-		return err
+		tss = ts_results
+		isCovered = covered
+		return nil
+	}
+	if err := sn.execOnConnWithPossibleRetry(qt, "searchAndEval_v1", f, deadline); err != nil {
+		return nil, err
+	}
+	return tss, isCovered, nil
+}
+
+func (sn *sketchNode) searchAndEvalOnConn(bc *handshake.BufferedConn, requestData []byte, denyPartialResponse bool) ([]*sketch.Timeseries, bool, error) {
+	// Send the request to sn.
+	if err := writeBytes(bc, requestData); err != nil {
+		return nil, fmt.Errorf("cannot write requestData: %w", err)
+	}
+	if err := writeLimit(bc, maxLabelNames); err != nil {
+		return nil, fmt.Errorf("cannot write maxLabelNames=%d: %w", maxLabelNames, err)
+	}
+	if err := bc.Flush(); err != nil {
+		return nil, fmt.Errorf("cannot flush request to conn: %w", err)
 	}
 
-	// Send the query to all the sketch nodes in parallel.
-	snr := startSketchNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *sketchNode) any {
-		// Use a separate variable for each goroutine
-		var err error
-		res := execSketchSearchQuery(qt, sq, func(qt *querytracer.Tracer, rd []byte, _ sketch.TenantToken) any {
-			sn.searchRequests.Inc()
-			err = sn.processSearchQuery(qt, rd, f, workerID, deadline)
-			if err != nil {
-				sn.searchErrors.Inc()
-				err = fmt.Errorf("cannot perform search on vmsketch %s: %w", sn.connPool.Addr(), err)
-				return &err
-			}
-
-			return &err
-		})
-
-		for _, e := range res {
-			e := e.(*error)
-			if *e != nil {
-				return e
-			}
-		}
-
-		return &err
-	})
-
-	// Collect results; each timeseries is evaluated results from sketches
-	isPartial, err := snr.collectResults(partialSearchResultsSketch, func(result any) error {
-		errP := result.(*error)
-		return *errP
-	})
-	// Make sure that processBlock is no longer called after the exit from processBlocks() function.
-	for i := range wgs {
-		muwg := &wgs[i]
-		muwg.mu.Lock()
-		muwg.stop = true
-		muwg.mu.Unlock()
-	}
-	for i := range wgs {
-		wgs[i].wg.Wait()
-	}
+	// Read response error.
+	buf, err := readBytes(nil, bc, maxErrorMessageSize)
 	if err != nil {
-		return isPartial, false, fmt.Errorf("cannot fetch query results from vmsketch nodes: %w", err)
+		return nil, fmt.Errorf("cannot read error message: %w", err)
 	}
-	return ts_results, isCovered, nil
+	if len(buf) > 0 {
+		return nil, newErrRemote(buf)
+	}
+
+	// Read response
+	var tss []*sketch.Timeseries
+	for {
+		buf, err = readBytes(buf[:0], bc)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read sketch evaluation results: %w", err)
+		}
+		if len(buf) == 0 {
+			// Reached the end of the response
+			return tss, isCovered, nil
+		}
+		labels = append(labels, string(buf))
+	}
 }
 
 /*
@@ -897,26 +811,41 @@ func SearchAndEvalSketchCache(qt *querytracer.Tracer, denyPartialResponse bool, 
 		MinTimestamp: sqs.MinTimestamp,
 		MaxTimestamp: sqs.MaxTimestamp,
 	}
+
+	// Send the query to all the sketch nodes in parallel.
+	type sketchEvalResult struct {
+		isCovered bool
+		tss       []*sketch.Timeseries
+		err       error
+	}
+
 	sns := getSketchNodes()
 	snr := startSketchNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *sketchNode) any {
-		return execSketchSearchQuery(qt, sqs, func(qt *querytracer.Tracer, requestData []byte) any {
+		return execSearchQuerySketch(qt, sqs, func(qt *querytracer.Tracer, requestData []byte) any {
 			sn.searchAndEvalRequests.Inc()
-			ts_results, isCovered, err := sn.processSearchAndEvalSketch(qt, requestData, sqs.FocusLabel, sqs.TopN, deadline)
+			ts_results, isCovered, err := sn.searchAndEval(qt, requestData, sqs.FocusLabel, sqs.TopN, deadline)
 			if err != nil {
 				sn.searchAndEvalErrors.Inc()
 				err = fmt.Errorf("cannot evaluate query from vmsketch %s: %w", sn.connPool.Addr(), err)
 			}
-			return tss
+			return &sketchEvalResult{
+				isCovered: isCovered,
+				tss:       ts_reults,
+				err:       err,
+			}
 		})
 	})
 
-	ts_results, isCovered, err := processSearchAndEvalSketch(qt, sns, denyPartialResponse, sqs, processBlock, deadline)
+	var isCovered_all bool
 
-	return ts_results, isCovered, err
+	// Collect results
+	tss := make([]*sketch.Timeseries, 0)
+
+	return tss, isCovered_all, err
 }
 
-// execSketchSearchQuery calls cb for with marshaled requestData for each tenant in sq.
-func execSketchSearchQuery(qt *querytracer.Tracer, sq *sketch.SearchQuery, cb func(qt *querytracer.Tracer, requestData []byte) any) []any {
+// execSearchQuerySketch calls cb for with marshaled requestData for each tenant in sq.
+func execSearchQuerySketch(qt *querytracer.Tracer, sq *sketch.SearchQuery, cb func(qt *querytracer.Tracer, requestData []byte) any) []any {
 	var requestData []byte
 	var results []any
 
@@ -1081,9 +1010,9 @@ func DeleteSeriesSketch(qt *querytracer.Tracer, sq *sketch.SearchQuery, deadline
 	if err != nil {
 		return 0, err
 	}
-	sns := getStorageNodes()
-	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
-		return execSearchQuery(qt, sq, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
+	sns := getSketchNodes()
+	snr := startSketchNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *sketchNode) any {
+		return execSearchQuerySketch(qt, sq, func(qt *querytracer.Tracer, requestData []byte) any {
 			sn.deleteSeriesRequests.Inc()
 			deletedCount, err := sn.deleteSeries(qt, requestData, deadline)
 			if err != nil {
@@ -1112,4 +1041,186 @@ func DeleteSeriesSketch(qt *querytracer.Tracer, sq *sketch.SearchQuery, deadline
 		return deletedTotal, fmt.Errorf("cannot delete time series on all the vmsketch nodes: %w", err)
 	}
 	return deletedTotal, nil
+}
+
+func RegisterMetricNameFuncNameSketch(qt *querytracer.Tracer, mrs []storage.MetricRow, funcName string, deadline searchutils.Deadline) error {
+	qt = qt.NewChild("register metric name and function name %s", funcName)
+	defer qt.Done()
+	sns := getSketchNodes()
+
+	// Split mrs among available vmstorage nodes.
+	mrsPerNode := make([][]storage.MetricRow, len(sns))
+	for _, mr := range mrs {
+		idx := 0
+		if len(sns) > 1 {
+			// There is no need in using the same hash as for time series distribution in vminsert,
+			// since RegisterMetricNames is used only in Graphite Tags API.
+			h := xxhash.Sum64(mr.MetricNameRaw)
+			idx = int(h % uint64(len(sns)))
+		}
+		mrsPerNode[idx] = append(mrsPerNode[idx], mr)
+	}
+
+	// Push mrs to storage nodes in parallel.
+	snr := startSketchNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, workerID uint, sn *sketchNode) any {
+		sn.registerMetricNamesRequests.Inc()
+		err := sn.registerMetricNames(qt, mrsPerNode[workerID], deadline)
+		if err != nil {
+			sn.registerMetricNamesErrors.Inc()
+		}
+		return &err
+	})
+
+	// Collect results
+	err := snr.collectAllResults(func(result any) error {
+		errP := result.(*error)
+		return *errP
+	})
+	if err != nil {
+		return fmt.Errorf("cannot register series on all the vmstorage nodes: %w", err)
+	}
+	return nil
+}
+
+// RegisterMetricNames registers metric names from mrs in the storage.
+func RegisterMetricNamesSketch(qt *querytracer.Tracer, mrs []storage.MetricRow, deadline searchutils.Deadline) error {
+	qt = qt.NewChild("register metric names")
+	defer qt.Done()
+	sns := getSketchNodes()
+	// Split mrs among available vmstorage nodes.
+	mrsPerNode := make([][]storage.MetricRow, len(sns))
+	for _, mr := range mrs {
+		idx := 0
+		if len(sns) > 1 {
+			// There is no need in using the same hash as for time series distribution in vminsert,
+			// since RegisterMetricNames is used only in Graphite Tags API.
+			h := xxhash.Sum64(mr.MetricNameRaw)
+			idx = int(h % uint64(len(sns)))
+		}
+		mrsPerNode[idx] = append(mrsPerNode[idx], mr)
+	}
+
+	// Push mrs to storage nodes in parallel.
+	snr := startSketchNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, workerID uint, sn *sketchNode) any {
+		sn.registerMetricNamesRequests.Inc()
+		err := sn.registerMetricNames(qt, mrsPerNode[workerID], deadline)
+		if err != nil {
+			sn.registerMetricNamesErrors.Inc()
+		}
+		return &err
+	})
+
+	// Collect results
+	err := snr.collectAllResults(func(result any) error {
+		errP := result.(*error)
+		return *errP
+	})
+	if err != nil {
+		return fmt.Errorf("cannot register series on all the vmstorage nodes: %w", err)
+	}
+	return nil
+}
+
+// TSDBStatus returns tsdb status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
+//
+// It accepts arbitrary filters on time series in sq.
+func SketchCacheStatus(qt *querytracer.Tracer, denyPartialResponse bool, sq *sketch.SearchQuery, focusLabel string, topN int, deadline searchutils.Deadline) (*storage.TSDBStatus, bool, error) {
+	qt = qt.NewChild("get tsdb stats: %s, focusLabel=%q, topN=%d", sq, focusLabel, topN)
+	defer qt.Done()
+	if deadline.Exceeded() {
+		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+	}
+	// Send the query to all the storage nodes in parallel.
+	type nodeResult struct {
+		status *sketch.SketchCacheStatus
+		err    error
+	}
+
+	sns := getSketchNodes()
+	snr := startSketchNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *sketchNode) any {
+		return execSearchQuerySketch(qt, sq, func(qt *querytracer.Tracer, requestData []byte) any {
+			sn.sketchCacheStatusRequests.Inc()
+			status, err := sn.getSketchCacheStatus(qt, requestData, focusLabel, topN, deadline)
+			if err != nil {
+				sn.sketchCacheStatusErrors.Inc()
+				err = fmt.Errorf("cannot obtain tsdb status from vmstorage %s: %w", sn.connPool.Addr(), err)
+			}
+			return &nodeResult{
+				status: status,
+				err:    err,
+			}
+		})
+	})
+
+	// Collect results.
+	var statuses []*sketch.SketchCacheStatus
+	isPartial, err := snr.collectResults(partialTSDBStatusResults, func(result any) error {
+		for _, cr := range result.([]any) {
+			nr := cr.(*nodeResult)
+			if nr.err != nil {
+				return nr.err
+			}
+			statuses = append(statuses, nr.status)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, isPartial, fmt.Errorf("cannot fetch tsdb status from vmstorage nodes: %w", err)
+	}
+
+	status := mergeSketchCachestatuses(statuses)
+	return status, isPartial, nil
+}
+
+func mergeSketchCachestatuses(statuses []*sketch.SketchCacheStatus) *storage.TSDBStatus {
+	totalSeries := uint64(0)
+
+	for _, st := range statuses {
+		totalSeries += st.TotalSeries
+	}
+	return &storage.TSDBStatus{
+		TotalSeries: totalSeries,
+	}
+}
+
+// SeriesCount returns the number of unique series.
+func SeriesCountSketch(qt *querytracer.Tracer, accountID, projectID uint32, denyPartialResponse bool, deadline searchutils.Deadline) (uint64, bool, error) {
+	qt = qt.NewChild("get series count")
+	defer qt.Done()
+	if deadline.Exceeded() {
+		return 0, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+	}
+	// Send the query to all the storage nodes in parallel.
+	type nodeResult struct {
+		n   uint64
+		err error
+	}
+	sns := getSketchNodes()
+	snr := startSketchNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *sketchNode) any {
+		sn.seriesCountRequests.Inc()
+		n, err := sn.getSeriesCount(qt, accountID, projectID, deadline)
+		if err != nil {
+			sn.seriesCountErrors.Inc()
+			err = fmt.Errorf("cannot get series count from vmstorage %s: %w", sn.connPool.Addr(), err)
+		}
+		return &nodeResult{
+			n:   n,
+			err: err,
+		}
+	})
+
+	// Collect results
+	var n uint64
+	isPartial, err := snr.collectResults(partialSeriesCountResults, func(result any) error {
+		nr := result.(*nodeResult)
+		if nr.err != nil {
+			return nr.err
+		}
+		n += nr.n
+		return nil
+	})
+	if err != nil {
+		return 0, isPartial, fmt.Errorf("cannot fetch series count from vmsketch nodes: %w", err)
+	}
+	return n, isPartial, nil
 }
