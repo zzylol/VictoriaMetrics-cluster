@@ -741,12 +741,12 @@ func startSketchNodesRequest(qt *querytracer.Tracer, sns []*sketchNode, denyPart
 	}
 }
 
-func (sn *sketchNode) searchAndEval(qt *querytracer.Tracer, sq *sketch.SearchQuery, denyPartialResponse bool, deadline searchutils.Deadline) ([]*sketch.Timeseries, bool, error) {
+func (sn *sketchNode) searchAndEval(qt *querytracer.Tracer, requestData []byte, deadline searchutils.Deadline) ([]*sketch.Timeseries, bool, error) {
 	var tss []*sketch.Timeseries
 	var isCovered bool
-	// TODO: handle requestData
+
 	f := func(bc *handshake.BufferedConn) error {
-		ts_results, covered, err := sn.searchAndEvalOnConn(bc, requestData, denyPartialResponse)
+		ts_results, covered, err := sn.searchAndEvalOnConn(bc, requestData)
 		if err != nil {
 			return err
 		}
@@ -755,38 +755,36 @@ func (sn *sketchNode) searchAndEval(qt *querytracer.Tracer, sq *sketch.SearchQue
 		return nil
 	}
 	if err := sn.execOnConnWithPossibleRetry(qt, "searchAndEval_v1", f, deadline); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	return tss, isCovered, nil
 }
 
-func (sn *sketchNode) searchAndEvalOnConn(bc *handshake.BufferedConn, requestData []byte, denyPartialResponse bool) ([]*sketch.Timeseries, bool, error) {
+func (sn *sketchNode) searchAndEvalOnConn(bc *handshake.BufferedConn, requestData []byte) ([]*sketch.Timeseries, bool, error) {
 	// Send the request to sn.
 	if err := writeBytes(bc, requestData); err != nil {
-		return nil, fmt.Errorf("cannot write requestData: %w", err)
-	}
-	if err := writeLimit(bc, maxLabelNames); err != nil {
-		return nil, fmt.Errorf("cannot write maxLabelNames=%d: %w", maxLabelNames, err)
+		return nil, false, fmt.Errorf("cannot send searchAndEval request to conn: %w", err)
 	}
 	if err := bc.Flush(); err != nil {
-		return nil, fmt.Errorf("cannot flush request to conn: %w", err)
+		return nil, false, fmt.Errorf("cannot flush searchAndEval request to conn: %w", err)
 	}
 
 	// Read response error.
 	buf, err := readBytes(nil, bc, maxErrorMessageSize)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read error message: %w", err)
+		return nil, false, fmt.Errorf("cannot read error message: %w", err)
 	}
 	if len(buf) > 0 {
-		return nil, newErrRemote(buf)
+		return nil, false, newErrRemote(buf)
 	}
 
-	// Read response
-	var tss []*sketch.Timeseries
+	// Read response; TODO
+	var tss []*sketch.Timeseries // for a single vmsketch node response
+	var isCovered bool
 	for {
 		buf, err = readBytes(buf[:0], bc)
 		if err != nil {
-			return nil, fmt.Errorf("cannot read sketch evaluation results: %w", err)
+			return nil, false, fmt.Errorf("cannot read sketch evaluation results: %w", err)
 		}
 		if len(buf) == 0 {
 			// Reached the end of the response
@@ -806,12 +804,6 @@ func SearchAndEvalSketchCache(qt *querytracer.Tracer, denyPartialResponse bool, 
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
 
-	// Setup search.
-	tr := sketch.TimeRange{
-		MinTimestamp: sqs.MinTimestamp,
-		MaxTimestamp: sqs.MaxTimestamp,
-	}
-
 	// Send the query to all the sketch nodes in parallel.
 	type sketchEvalResult struct {
 		isCovered bool
@@ -823,24 +815,36 @@ func SearchAndEvalSketchCache(qt *querytracer.Tracer, denyPartialResponse bool, 
 	snr := startSketchNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *sketchNode) any {
 		return execSearchQuerySketch(qt, sqs, func(qt *querytracer.Tracer, requestData []byte) any {
 			sn.searchAndEvalRequests.Inc()
-			ts_results, isCovered, err := sn.searchAndEval(qt, requestData, sqs.FocusLabel, sqs.TopN, deadline)
+			ts_results, isCovered, err := sn.searchAndEval(qt, requestData, deadline)
 			if err != nil {
 				sn.searchAndEvalErrors.Inc()
 				err = fmt.Errorf("cannot evaluate query from vmsketch %s: %w", sn.connPool.Addr(), err)
 			}
 			return &sketchEvalResult{
 				isCovered: isCovered,
-				tss:       ts_reults,
+				tss:       ts_results,
 				err:       err,
 			}
 		})
 	})
 
-	var isCovered_all bool
-
 	// Collect results
 	tss := make([]*sketch.Timeseries, 0)
-
+	var isCovered_all bool = true
+	err := snr.collectAllResults(func(result any) error {
+		for _, cr := range result.([]any) {
+			nr := cr.(*sketchEvalResult)
+			if nr.err != nil {
+				return nr.err
+			}
+			tss = append(tss, nr.tss...)
+			isCovered_all = isCovered_all && nr.isCovered
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, false, fmt.Errorf("cannot evaluate query on all the vmsketch nodes: %w", err)
+	}
 	return tss, isCovered_all, err
 }
 
