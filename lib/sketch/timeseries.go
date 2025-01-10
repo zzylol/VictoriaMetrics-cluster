@@ -77,7 +77,7 @@ func putTimeseries(ts *Timeseries) {
 
 var TimeseriesPool sync.Pool
 
-func marshalTimeseriesFast(dst []byte, tss []*Timeseries, maxSize int, step int64) []byte {
+func MarshalTimeseriesFast(dst []byte, tss []*Timeseries, maxSize int, step int64) []byte {
 	if len(tss) == 0 {
 		// marshal zero Timeseries and zero timestamps
 		dst = encoding.MarshalUint64(dst, 0)
@@ -125,7 +125,7 @@ func marshalTimeseriesFast(dst []byte, tss []*Timeseries, maxSize int, step int6
 // unmarshalTimeseriesFast unmarshals Timeseries from src.
 //
 // The returned Timeseries refer to src, so it is unsafe to modify it while Timeseries are in use.
-func unmarshalTimeseriesFast(src []byte) ([]*Timeseries, error) {
+func UnmarshalTimeseriesFast(src []byte) ([]*Timeseries, error) {
 	if len(src) < 16 {
 		return nil, fmt.Errorf("cannot unmarshal Timeseries from %d bytes; need at least 16 bytes", len(src))
 	}

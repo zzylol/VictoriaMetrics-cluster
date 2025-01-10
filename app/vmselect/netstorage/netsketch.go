@@ -782,7 +782,7 @@ func (sn *sketchNode) searchAndEvalOnConn(bc *handshake.BufferedConn, requestDat
 	var tss []*sketch.Timeseries // for a single vmsketch node response
 	var isCovered bool
 	for {
-		buf, err = readBytes(buf[:0], bc)
+		buf, err = readBytes(buf[:0], bc, maxEvalResultSize)
 		if err != nil {
 			return nil, false, fmt.Errorf("cannot read sketch evaluation results: %w", err)
 		}
@@ -790,7 +790,12 @@ func (sn *sketchNode) searchAndEvalOnConn(bc *handshake.BufferedConn, requestDat
 			// Reached the end of the response
 			return tss, isCovered, nil
 		}
-		labels = append(labels, string(buf))
+		unmarshaled_tss, err := sketch.UnmarshalTimeseriesFast(buf)
+
+		if err != nil {
+			return nil, false, fmt.Errorf("cannot unmarshal timeseries: %w", err)
+		}
+		tss = append(tss, unmarshaled_tss...)
 	}
 }
 

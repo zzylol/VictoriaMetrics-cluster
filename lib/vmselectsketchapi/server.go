@@ -801,7 +801,7 @@ func (s *Server) processSearchAndEval(ctx *vmselectRequestCtx) error {
 		return fmt.Errorf("cannot send empty error message: %w", err)
 	}
 
-	ctx.dataBuf = tss.Marshal(ctx.dataBuf[:0])
+	ctx.dataBuf = sketch.MarshalTimeseriesFast(ctx.dataBuf[:0], tss, maxEvalResultSize, step)
 	if err := ctx.writeDataBufBytes(); err != nil {
 		return fmt.Errorf("cannot send sketch eval timeseries results: %w", err)
 	}
