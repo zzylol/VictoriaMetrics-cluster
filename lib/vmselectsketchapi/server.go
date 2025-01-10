@@ -292,7 +292,6 @@ type vmselectRequestCtx struct {
 
 	qt *querytracer.Tracer
 	sq sketch.SearchQuery
-	ms sketch.MetricSketch
 
 	// timeout in seconds for the current request
 	timeout uint64
@@ -796,6 +795,16 @@ func (s *Server) processSearchAndEval(ctx *vmselectRequestCtx) error {
 	}
 
 	// TODO: write tss to vmselect
+
+	// Send an empty error message to vmselect.
+	if err := ctx.writeString(""); err != nil {
+		return fmt.Errorf("cannot send empty error message: %w", err)
+	}
+
+	ctx.dataBuf = tss.Marshal(ctx.dataBuf[:0])
+	if err := ctx.writeDataBufBytes(); err != nil {
+		return fmt.Errorf("cannot send sketch eval timeseries results: %w", err)
+	}
 
 	// Send 'end of response' marker
 	if err := ctx.writeString(""); err != nil {

@@ -1026,10 +1026,7 @@ func DeleteSeriesSketch(qt *querytracer.Tracer, sq *sketch.SearchQuery, deadline
 		deletedCount int
 		err          error
 	}
-	err := populateSqTenantTokensIfNeeded(sq)
-	if err != nil {
-		return 0, err
-	}
+
 	sns := getSketchNodes()
 	snr := startSketchNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *sketchNode) any {
 		return execSearchQuerySketch(qt, sq, func(qt *querytracer.Tracer, requestData []byte) any {
@@ -1047,7 +1044,7 @@ func DeleteSeriesSketch(qt *querytracer.Tracer, sq *sketch.SearchQuery, deadline
 
 	// Collect results
 	deletedTotal := 0
-	err = snr.collectAllResults(func(result any) error {
+	err := snr.collectAllResults(func(result any) error {
 		for _, cr := range result.([]any) {
 			nr := cr.(*nodeResult)
 			if nr.err != nil {
