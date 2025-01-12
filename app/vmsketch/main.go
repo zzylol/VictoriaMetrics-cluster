@@ -22,7 +22,6 @@ import (
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/protoparser/common"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/pushmetrics"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/sketch"
-	"github.com/zzylol/VictoriaMetrics-cluster/lib/storage"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/stringsutil"
 )
 
@@ -81,14 +80,6 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
-
-	storage.SetDedupInterval(*minScrapeInterval)
-	storage.SetDataFlushInterval(*inmemoryDataFlushInterval)
-	storage.SetLogNewSeries(*logNewSeries)
-	storage.SetRetentionTimezoneOffset(*retentionTimezoneOffset)
-	storage.SetFreeDiskSpaceLimit(minFreeDiskSpaceBytes.N)
-	storage.SetTSIDCacheSize(cacheSizeStorageTSID.IntN())
-	storage.SetTagFiltersCacheSize(cacheSizeIndexDBTagFilters.IntN())
 	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexDBIndexBlocks.IntN())
 	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.IntN())
 
