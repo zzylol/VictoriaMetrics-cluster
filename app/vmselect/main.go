@@ -60,6 +60,9 @@ var (
 	storageNodes    = flagutil.NewArrayString("storageNode", "Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN . "+
 		"Enterprise version of VictoriaMetrics supports automatic discovery of vmstorage addresses via DNS SRV records. For example, -storageNode=srv+vmstorage.addrs . "+
 		"See https://docs.victoriametrics.com/cluster-victoriametrics/#automatic-vmstorage-discovery")
+	sketchNodes = flagutil.NewArrayString("sketchNode", "Comma-separated addresses of vmsketch nodes; usage: -sketchNode=vmsketch-host1,...,vmsketch-hostN . "+
+		"Enterprise version of VictoriaMetrics supports automatic discovery of vmsketch addresses via DNS SRV records. For example, -sketchNode=srv+vmsketch.addrs . "+
+		"See https://docs.victoriametrics.com/cluster-victoriametrics/#automatic-vmsketch-discovery")
 
 	clusternativeListenAddr = flag.String("clusternativeListenAddr", "", "TCP address to listen for requests from other vmselect nodes in multi-level cluster setup. "+
 		"See https://docs.victoriametrics.com/cluster-victoriametrics/#multi-level-cluster-setup . Usually :8401 should be set to match default vmstorage port for vmselect. Disabled work if empty")
@@ -104,7 +107,19 @@ func main() {
 		logger.Fatalf("found equal addresses of storage nodes in the -storageNodes flag: %q", duplicatedAddr)
 	}
 
-	netstorage.Init(*storageNodes)
+	logger.Infof("starting netsketch at sketchNodes %s", *sketchNodes)
+
+	if len(*sketchNodes) == 0 {
+		logger.Fatalf("missing -sketchNode arg")
+	}
+	if hasEmptyValues(*sketchNodes) {
+		logger.Fatalf("found empty address of sketch node in the -sketchNodes flag, please make sure that all -sketchNode args are non-empty")
+	}
+	if duplicatedAddr := checkDuplicates(*sketchNodes); duplicatedAddr != "" {
+		logger.Fatalf("found equal addresses of sketch nodes in the -sketchNodes flag: %q", duplicatedAddr)
+	}
+
+	netstorage.Init(*storageNodes, *sketchNodes)
 	logger.Infof("started netstorage in %.3f seconds", time.Since(startTime).Seconds())
 
 	if len(*cacheDataPath) > 0 {
