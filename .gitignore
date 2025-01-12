@@ -27,3 +27,9 @@ _site
 coverage.txt
 cspell.json
 *~
+cache/*
+flock.lock
+indexdb/*
+metadata/*
+victoria-metrics-storage/*
+
