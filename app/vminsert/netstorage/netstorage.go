@@ -510,10 +510,10 @@ func setStorageNodesBucket(snb *storageNodesBucket) {
 // hashSeed is used for changing the distribution of input time series among addrs.
 //
 // Call MustStop when the initialized vmstorage connections are no longer needed.
-func Init(addrs []string, hashSeed uint64) {
-	snb := initStorageNodes(addrs, hashSeed)
+func Init(addrs []string, hashSeed_storage uint64, hashSeed_sketch uint64) {
+	snb := initStorageNodes(addrs, hashSeed_storage)
 	setStorageNodesBucket(snb)
-	sknb := initSketchNodes(addrs, hashSeed)
+	sknb := initSketchNodes(addrs, hashSeed_sketch)
 	setSketchNodesBucket(sknb)
 }
 

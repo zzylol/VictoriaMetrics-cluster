@@ -78,6 +78,9 @@ var (
 	storageNodes = flagutil.NewArrayString("storageNode", "Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN . "+
 		"Enterprise version of VictoriaMetrics supports automatic discovery of vmstorage addresses via DNS SRV records. For example, -storageNode=srv+vmstorage.addrs . "+
 		"See https://docs.victoriametrics.com/cluster-victoriametrics/#automatic-vmstorage-discovery")
+	sketchNodes = flagutil.NewArrayString("sketchNode", "Comma-separated addresses of vmsketch nodes; usage: -sketchNode=vmsketch-host1,...,vmsketch-hostN . "+
+		"Enterprise version of VictoriaMetrics supports automatic discovery of vmsketch addresses via DNS SRV records. For example, -sketchNode=srv+vmsketch.addrs . "+
+		"See https://docs.victoriametrics.com/cluster-victoriametrics/#automatic-vmsketch-discovery")
 	maxLabelsPerTimeseries = flag.Int("maxLabelsPerTimeseries", 40, "The maximum number of labels per time series to be accepted. Series with superfluous labels are ignored. In this case the vm_rows_ignored_total{reason=\"too_many_labels\"} metric at /metrics page is incremented")
 	maxLabelNameLen        = flag.Int("maxLabelNameLen", 256, "The maximum length of label name in the accepted time series. Series with longer label name are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_name\"} metric at /metrics page is incremented")
 	maxLabelValueLen       = flag.Int("maxLabelValueLen", 4*1024, "The maximum length of label values in the accepted time series. Series with longer label value are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_value\"} metric at /metrics page is incremented")
@@ -110,14 +113,34 @@ func main() {
 	if duplicatedAddr := checkDuplicates(*storageNodes); duplicatedAddr != "" {
 		logger.Fatalf("found equal addresses of storage nodes in the -storageNodes flag: %q", duplicatedAddr)
 	}
-	hashSeed := uint64(0)
+
+	logger.Infof("initializing netsketch for sketchNodes %s...", *sketchNodes)
+
+	if len(*sketchNodes) == 0 {
+		logger.Fatalf("missing -sketchNode arg")
+	}
+	if hasEmptyValues(*sketchNodes) {
+		logger.Fatalf("found empty address of sketch node in the -sketchNodes flag, please make sure that all -sketchNode args are non-empty")
+	}
+	if duplicatedAddr := checkDuplicates(*sketchNodes); duplicatedAddr != "" {
+		logger.Fatalf("found equal addresses of sketch nodes in the -sketchNodes flag: %q", duplicatedAddr)
+	}
+
+	hashSeed_storage := uint64(0)
 	if *clusternativeListenAddr != "" {
 		// Use different hash seed for the second level of vminsert nodes in multi-level cluster setup.
 		// This should fix uneven distribution of time series among storage nodes.
 		// See https://github.com/zzylol/VictoriaMetrics-cluster/issues/1672
-		hashSeed = 0xabcdef0123456789
+		hashSeed_storage = 0xabcdef0123456789
 	}
-	netstorage.Init(*storageNodes, hashSeed)
+	hashSeed_sketch := uint64(0)
+	if *clusternativeListenAddr != "" {
+		// Use different hash seed for the second level of vminsert nodes in multi-level cluster setup.
+		// This should fix uneven distribution of time series among storage nodes.
+		// See https://github.com/zzylol/VictoriaMetrics-cluster/issues/1672
+		hashSeed_sketch = 0xabcdef0123456789
+	}
+	netstorage.Init(*storageNodes, hashSeed_storage, hashSeed_sketch)
 	logger.Infof("successfully initialized netstorage in %.3f seconds", time.Since(startTime).Seconds())
 
 	relabel.Init()
