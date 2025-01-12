@@ -27,12 +27,14 @@ include package/release/Makefile
 all: \
 	vminsert \
 	vmselect \
-	vmstorage
+	vmstorage \
+	vmsketch
 
 all-pure: \
 	vminsert-pure \
 	vmselect-pure \
-	vmstorage-pure
+	vmstorage-pure \
+	vmsketch-pure
 
 clean:
 	rm -rf bin/*
@@ -40,52 +42,62 @@ clean:
 vmcluster-linux-amd64: \
 	vminsert-linux-amd64 \
 	vmselect-linux-amd64 \
-	vmstorage-linux-amd64
+	vmstorage-linux-amd64 \
+	vmsketch-linux-amd64
 
 vmcluster-linux-arm64: \
 	vminsert-linux-arm64 \
 	vmselect-linux-arm64 \
-	vmstorage-linux-arm64
+	vmstorage-linux-arm64 \
+	vmsketch-linux-arm64
 
 vmcluster-linux-arm: \
 	vminsert-linux-arm \
 	vmselect-linux-arm \
-	vmstorage-linux-arm
+	vmstorage-linux-arm \
+	vmsketch-linux-arm
 
 vmcluster-linux-ppc64le: \
 	vminsert-linux-ppc64le \
 	vmselect-linux-ppc64le \
-	vmstorage-linux-ppc64le
+	vmstorage-linux-ppc64le \
+	vmsketch-linux-ppc64le
 
 vmcluster-linux-386: \
 	vminsert-linux-386 \
 	vmselect-linux-386 \
-	vmstorage-linux-386
+	vmstorage-linux-386 \
+	vmsketch-linux-386
 
 vmcluster-freebsd-amd64: \
 	vminsert-freebsd-amd64 \
 	vmselect-freebsd-amd64 \
-	vmstorage-freebsd-amd64
+	vmstorage-freebsd-amd64 \
+	vmsketch-freebsd-amd64
 
 vmcluster-openbsd-amd64: \
 	vminsert-openbsd-amd64 \
 	vmselect-openbsd-amd64 \
-	vmstorage-openbsd-amd64
+	vmstorage-openbsd-amd64 \
+	vmsketch-openbsd-amd64
 
 vmcluster-windows-amd64: \
 	vminsert-windows-amd64 \
 	vmselect-windows-amd64 \
-	vmstorage-windows-amd64
+	vmstorage-windows-amd64 \
+	vmsketch-windows-amd64
 
 vmcluster-darwin-amd64: \
 	vminsert-darwin-amd64 \
 	vmselect-darwin-amd64 \
-	vmstorage-darwin-amd64
+	vmstorage-darwin-amd64 \
+	vmsketch-darwin-amd64
 
 vmcluster-darwin-arm64: \
 	vminsert-darwin-arm64 \
 	vmselect-darwin-arm64 \
-	vmstorage-darwin-arm64
+	vmstorage-darwin-arm64 \
+	vmsketch-darwin-arm64
 
 crossbuild: vmcluster-crossbuild
 
@@ -101,12 +113,14 @@ vmcluster-crossbuild:
 publish: \
 	publish-vminsert \
 	publish-vmselect \
-	publish-vmstorage
+	publish-vmstorage \
+	publish-vmsketch
 
 package: \
 	package-vminsert \
 	package-vmselect \
-	package-vmstorage
+	package-vmstorage \
+	package-vmsketch
 
 publish-release:
 	rm -rf bin/*
@@ -151,40 +165,48 @@ release-vmcluster-darwin-arm64:
 release-vmcluster-goos-goarch: \
 	vminsert-$(GOOS)-$(GOARCH)-prod \
 	vmselect-$(GOOS)-$(GOARCH)-prod \
-	vmstorage-$(GOOS)-$(GOARCH)-prod
+	vmstorage-$(GOOS)-$(GOARCH)-prod \
+	vmsketch-$(GOOS)-$(GOARCH)-prod
 	cd bin && \
 		tar $(TAR_OWNERSHIP) --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf victoria-metrics-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
 			vminsert-$(GOOS)-$(GOARCH)-prod \
 			vmselect-$(GOOS)-$(GOARCH)-prod \
 			vmstorage-$(GOOS)-$(GOARCH)-prod \
+			vmsketch-$(GOOS)-$(GOARCH)-prod \
 		&& sha256sum victoria-metrics-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
 			vminsert-$(GOOS)-$(GOARCH)-prod \
 			vmselect-$(GOOS)-$(GOARCH)-prod \
 			vmstorage-$(GOOS)-$(GOARCH)-prod \
+			vmsketch-$(GOOS)-$(GOARCH)-prod \
 			| sed s/-$(GOOS)-$(GOARCH)-prod/-prod/ > victoria-metrics-$(GOOS)-$(GOARCH)-$(PKG_TAG)_checksums.txt
 	cd bin && rm -rf \
 		vminsert-$(GOOS)-$(GOARCH)-prod \
 		vmselect-$(GOOS)-$(GOARCH)-prod \
-		vmstorage-$(GOOS)-$(GOARCH)-prod
+		vmstorage-$(GOOS)-$(GOARCH)-prod \
+		vmsketch-$(GOOS)-$(GOARCH)-prod
 
 release-vmcluster-windows-goarch: \
 	vminsert-windows-$(GOARCH)-prod \
 	vmselect-windows-$(GOARCH)-prod \
-	vmstorage-windows-$(GOARCH)-prod
+	vmstorage-windows-$(GOARCH)-prod \
+	vmsketch-windows-$(GOARCH)-prod
 	cd bin && \
 		zip victoria-metrics-windows-$(GOARCH)-$(PKG_TAG).zip \
 			vminsert-windows-$(GOARCH)-prod.exe \
 			vmselect-windows-$(GOARCH)-prod.exe \
 			vmstorage-windows-$(GOARCH)-prod.exe \
+			vmsketch-windows-$(GOARCH)-prod.exe \
 		&& sha256sum victoria-metrics-windows-$(GOARCH)-$(PKG_TAG).zip \
 			vminsert-windows-$(GOARCH)-prod.exe \
 			vmselect-windows-$(GOARCH)-prod.exe \
 			vmstorage-windows-$(GOARCH)-prod.exe \
+			vmsketch-windows-$(GOARCH)-prod.exe \
 		> victoria-metrics-windows-$(GOARCH)-$(PKG_TAG)_checksums.txt
 	cd bin && rm -rf \
 		vminsert-windows-$(GOARCH)-prod.exe \
 		vmselect-windows-$(GOARCH)-prod.exe \
-		vmstorage-windows-$(GOARCH)-prod.exe
+		vmstorage-windows-$(GOARCH)-prod.exe \
+		vmsketch-windows-$(GOARCH)-prod.exe
 
 pprof-cpu:
 	go tool pprof -trim_path=github.com/zzylol/VictoriaMetrics-cluster@ $(PPROF_FILE)
