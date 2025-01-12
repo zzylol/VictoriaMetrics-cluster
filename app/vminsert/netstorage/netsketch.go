@@ -824,7 +824,7 @@ func (sn *sketchNode) dial() (*handshake.BufferedConn, error) {
 var (
 	maxBufSizePerSketchNode int
 
-	reroutedRowsProcessedSketch           = metrics.NewCounter(`vm_rpc_rerouted_rows_processed_total{name="vminsert"}`)
-	reroutesTotalSketch                   = metrics.NewCounter(`vm_rpc_reroutes_total{name="vminsert"}`)
-	rowsIncompletelyReplicatedTotalSketch = metrics.NewCounter(`vm_rpc_rows_incompletely_replicated_total{name="vminsert"}`)
+	reroutedRowsProcessedSketch           = metrics.NewCounter(`vm_rpc_rerouted_rows_processed_sketch_total{name="vminsert"}`)
+	reroutesTotalSketch                   = metrics.NewCounter(`vm_rpc_reroutes_sketch_total{name="vminsert"}`)
+	rowsIncompletelyReplicatedTotalSketch = metrics.NewCounter(`vm_rpc_rows_incompletely_replicated_sketch_total{name="vminsert"}`)
 )
