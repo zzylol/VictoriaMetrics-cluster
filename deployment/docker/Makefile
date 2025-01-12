@@ -12,7 +12,7 @@ BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell ec
 DOCKER ?= docker
 DOCKER_RUN ?= $(DOCKER) run
 DOCKER_BUILD ?= $(DOCKER) build
-DOCKER_COMPOSE ?= $(DOCKER) compose
+DOCKER_COMPOSE ?= $(DOCKER)-compose
 DOCKER_IMAGE_LS ?= $(DOCKER) image ls --format '{{.Repository}}:{{.Tag}}'
 
 package-base:
