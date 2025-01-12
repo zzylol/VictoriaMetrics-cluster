@@ -30,8 +30,8 @@ var (
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the given -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
-	vminsertAddr      = flag.String("vminsertAddr", ":8400", "TCP address to accept connections from vminsert services")
-	vmselectAddr      = flag.String("vmselectAddr", ":8401", "TCP address to accept connections from vmselect services")
+	vminsertAddr      = flag.String("vminsertAddr", ":8500", "TCP address to accept connections from vminsert services")
+	vmselectAddr      = flag.String("vmselectAddr", ":8501", "TCP address to accept connections from vmselect services")
 	snapshotAuthKey   = flagutil.NewPassword("snapshotAuthKey", "authKey, which must be passed in query string to /snapshot* pages")
 	forceMergeAuthKey = flagutil.NewPassword("forceMergeAuthKey", "authKey, which must be passed in query string to /internal/force_merge pages")
 	forceFlushAuthKey = flagutil.NewPassword("forceFlushAuthKey", "authKey, which must be passed in query string to /internal/force_flush pages")
