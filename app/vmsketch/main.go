@@ -166,7 +166,7 @@ func newRequestHandler(sketch *sketch.Sketch) httpserver.RequestHandler {
 func requestHandler(w http.ResponseWriter, r *http.Request, sketch *sketch.Sketch) bool {
 	path := r.URL.Path
 	switch path {
-
+	// TODO
 	default:
 		return false
 	}
