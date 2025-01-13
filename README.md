@@ -125,6 +125,29 @@ The provided [ZIP file](https://github.com/zzylol/VictoriaMetrics-cluster/blob/m
 Thank you for your cooperation!
 
 
+# Run Docker Compose for cluster deployment
+1. Build local image with changes
+```
+sudo make package
+
+sudo docker image ls # list all images
+```
+
+2. Change image names and tags in docker-compose-cluster.yml
+
+3. Start and Shutdown the cluster (single machine)
+
+Start the cluster:
+```
+cd $VictoriaMetrics-cluster/
+sudo make docker-cluster-up
+```
+
+Shutodown the cluster:
+```
+sudo make docker-cluster down
+```
+
 
 # Run Docker Compose and Docker Swarm for distributed cluster version
 Docker-compose version: >= 2.0 (install latest)
@@ -142,4 +165,16 @@ sudo docker stack services stackdemo
 Stop stack
 ```
 sudo  docker stack rm stackdemo
+```
+
+# Access cluster
+
+vmalert:
+```
+http://hostname:8427/select/0/prometheus/vmalert/api/v1/rules
+```
+
+vmselect:
+```
+
 ```
