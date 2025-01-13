@@ -117,7 +117,7 @@ services:
     ports:
       - 8481
     restart: always
-  vmselect-2:``
+  vmselect-2:
     container_name: vmselect-2
     image: zzylol/vmselect:v1.108.1-cluster
     depends_on:
