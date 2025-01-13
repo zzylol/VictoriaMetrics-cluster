@@ -174,7 +174,7 @@ vmalert:
 http://hostname:8427/select/0/prometheus/vmalert/api/v1/rules
 ```
 
-vmselect:
+vmui:
 ```
-
+https://hostname:8427/select/0/prometheus/vmui/
 ```
