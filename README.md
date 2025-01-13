@@ -127,6 +127,8 @@ Thank you for your cooperation!
 
 
 # Run Docker Compose and Docker Swarm for distributed cluster version
+Docker-compose version: >= 2.0 (install latest)
+
 Start stack
 ```
 sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster.yml stackdemo
