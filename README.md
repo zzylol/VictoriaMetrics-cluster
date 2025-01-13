@@ -123,3 +123,21 @@ The provided [ZIP file](https://github.com/zzylol/VictoriaMetrics-cluster/blob/m
 * You may resize the logo as needed, but ensure all proportions remain intact.
 
 Thank you for your cooperation!
+
+
+
+# Run Docker Compose and Docker Swarm for distributed cluster version
+Start stack
+```
+sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster.yml stackdemo
+```
+
+Show status
+```
+sudo docker stack services stackdemo
+```
+
+Stop stack
+```
+sudo  docker stack rm stackdemo
+```
