@@ -39,7 +39,7 @@ services:
   # where N is number of vmstorages (2 in this case).
   vmstorage-1:
     container_name: vmstorage-1
-    image: zzylol/vmstorage:v1.108.1-cluster
+    image: victoriametrics/vmstorage:v1.108.1-cluster
     ports:
       - 8482
       - 8400
@@ -51,7 +51,7 @@ services:
     restart: always
   vmstorage-2:
     container_name: vmstorage-2
-    image: zzylol/vmstorage:v1.108.1-cluster
+    image: victoriametrics/vmstorage:v1.108.1-cluster
     ports:
       - 8482
       - 8400
@@ -66,32 +66,26 @@ services:
   # where N is number of vmsketches (2 in this case).
   vmsketch-1:
     container_name: vmsketch-1
-    image: zzylol/vmsketch:v0.1-cluster
+    image: victoriametrics/vmsketch:v0.1-cluster
     ports:
       - 8482
       - 8500
       - 8501
-    volumes:
-      - strgdata-1:/storage
-    command:
     restart: always
   vmsketch-2:
     container_name: vmsketch-2
-    image: zzylol/vmsketch:v0.1-cluster
+    image: victoriametrics/vmsketch:v0.1-cluster
     ports:
       - 8482
       - 8500
       - 8501
-    volumes:
-      - strgdata-2:/storage
-    command:
     restart: always
 
   # vminsert is ingestion frontend. It receives metrics pushed by vmagent,
   # pre-process them and distributes across configured vmstorage shards.
   vminsert:
     container_name: vminsert
-    image: zzylol/vminsert:v1.108.1-cluster
+    image: victoriametrics/vminsert:v1.108.1-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -106,7 +100,7 @@ services:
   # vmselect collects results from configured `--storageNode` shards.
   vmselect-1:
     container_name: vmselect-1
-    image: zzylol/vmselect:v1.108.1-cluster
+    image: victoriametrics/vmselect:v1.108.1-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -119,7 +113,7 @@ services:
     restart: always
   vmselect-2:
     container_name: vmselect-2
-    image: zzylol/vmselect:v1.108.1-cluster
+    image: victoriametrics/vmselect:v1.108.1-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
