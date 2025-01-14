@@ -64,12 +64,12 @@ func newSketchNode(ms *metrics.Set, group *sketchNodesGroup, addr string) *sketc
 
 		deleteSeriesRequests:      ms.NewCounter(fmt.Sprintf(`vm_requests_sketch_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 		deleteSeriesErrors:        ms.NewCounter(fmt.Sprintf(`sketchNodevm_request_errors_sketch_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-		sketchCacheStatusRequests: ms.NewCounter(fmt.Sprintf(`vm_requests_sketch_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-		sketchCacheStatusErrors:   ms.NewCounter(fmt.Sprintf(`vm_request_errors_sketch_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		sketchCacheStatusRequests: ms.NewCounter(fmt.Sprintf(`vm_requests_sketch_total{action="sketchCacheStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		sketchCacheStatusErrors:   ms.NewCounter(fmt.Sprintf(`vm_request_errors_sketch_total{action="sketchCacheStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 		seriesCountRequests:       ms.NewCounter(fmt.Sprintf(`vm_requests_sketch_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 		seriesCountErrors:         ms.NewCounter(fmt.Sprintf(`sketchNodevm_request_errors_sketch_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 		searchAndEvalRequests:     ms.NewCounter(fmt.Sprintf(`vm_requests_sketch_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-		searchAndEvalErrors:       ms.NewCounter(fmt.Sprintf(`sketchNodevm_request_errors_sketch_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+		searchAndEvalErrors:       ms.NewCounter(fmt.Sprintf(`sketchNodevm_request_errors_sketch_total{action="searchAndEval", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 		metricRowsRead:            ms.NewCounter(fmt.Sprintf(`vm_metric_rows_read_sketch_total{name="vmselect", addr=%q}`, addr)),
 	}
 	return sn
