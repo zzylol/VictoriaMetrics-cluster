@@ -198,10 +198,17 @@ sudo systemctl daemon-reload
 sudo systemctl restart docker
 ```
 
-# Start each component individually without docker
+# Start each component individually without docker (start them in order)
 ```
 ./bin/vmstorage --storageDataPath=./
 ./bin/vmsketch 
 ./bin/vmselect --storageNode=127.0.0.1:8401 --sketchNode=127.0.0.1:8501
 ./bin/vminsert --storageNode=127.0.0.1:8400 --sketchNode=127.0.0.1:8500
+
+./bin/vmagent --promscrape.config=/mydata/VictoriaMetrics-cluster/deployment/docker/prometheus-cluster-baremetal.yml --remoteWrite.url=http://127.0.0.1:8480/insert/0/prometheus/
+
+./bin/vmauth --auth.config=/mydata/VictoriaMetrics-cluster/deployment/docker/auth-cluster-baremetal.yml
+
+
+./bin/vmalert --datasource.url=http://127.0.0.1:8427/select/0/prometheus --remoteRead.url=http://127.0.0.1:8427/select/0/prometheus --remoteWrite.url=http://127.0.0.1:8480/insert/0/prometheus  --rule=/mydata/VictoriaMetrics-cluster/deployment/docker/rules/*.yml -external.url=http://127.0.0.1:3000 -notifier.blackhole
 ```
