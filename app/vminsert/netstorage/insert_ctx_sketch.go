@@ -1,11 +1,15 @@
 package netstorage
 
 import (
+	"fmt"
+	"net/http"
+
 	"github.com/cespare/xxhash/v2"
 	"github.com/zzylol/VictoriaMetrics-cluster/app/vminsert/relabel"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/auth"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/bytesutil"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/encoding"
+	"github.com/zzylol/VictoriaMetrics-cluster/lib/httpserver"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/prompbmarshal"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/storage"
 )
@@ -137,5 +141,18 @@ func (ctx *InsertCtxSketch) WriteDataPointExtSketch(sketchNodeIdx int, metricNam
 		br.buf = bufNew
 	}
 	br.rows++
+	return nil
+}
+
+func (br *bufRows) pushToSketch(snb *sketchNodesBucket, sn *sketchNode) error {
+	bufLen := len(br.buf)
+	err := sn.push(snb, br.buf, br.rows)
+	br.reset()
+	if err != nil {
+		return &httpserver.ErrorWithStatusCode{
+			Err:        fmt.Errorf("cannot send %d bytes to sketchNode %q: %w", bufLen, sn.dialer.Addr(), err),
+			StatusCode: http.StatusServiceUnavailable,
+		}
+	}
 	return nil
 }
