@@ -127,7 +127,7 @@ func initSketchNodes(addrs []string, hashSeed uint64) *sketchNodesBucket {
 	for _, addr := range addrs {
 		if _, _, err := net.SplitHostPort(addr); err != nil {
 			// Automatically add missing port.
-			addr += ":8400"
+			addr += ":8500"
 		}
 		sn := &sketchNode{
 			dialer: netutil.NewTCPDialer(ms, "vminsert", addr, *vmsketchDialTimeout, *vmsketchUserTimeout),

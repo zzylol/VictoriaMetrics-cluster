@@ -66,30 +66,31 @@ services:
   # where N is number of vmsketches (2 in this case).
   vmsketch-1:
     container_name: vmsketch-1
-    image: victoriametrics/vmsketch:heads-master-0-gf2f9144-dirty-eb5c3633
+    image: victoriametrics/vmsketch:heads-master-0-gcaf55c3-dirty-eb18e8d7
     ports:
       - 8582
       - 8500
       - 8501
     restart: always
-  # vmsketch-2:
-  #   container_name: vmsketch-2
-  #   image: victoriametrics/vmsketch:heads-master-0-g5197fd5-dirty-469085e3
-  #   ports:
-  #     - 8582
-  #     - 8500
-  #     - 8501
-  #   restart: always
+  vmsketch-2:
+    container_name: vmsketch-2
+    image: victoriametrics/vmsketch:heads-master-0-gcaf55c3-dirty-eb18e8d7
+    ports:
+      - 8582
+      - 8500
+      - 8501
+    restart: always
 
   # vminsert is ingestion frontend. It receives metrics pushed by vmagent,
   # pre-process them and distributes across configured vmstorage shards.
   vminsert:
     container_name: vminsert
-    image: victoriametrics/vminsert:heads-master-0-gf2f9144-dirty-eb5c3633
+    image: victoriametrics/vminsert:heads-master-0-gcaf55c3-dirty-6586a0c3 
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
       - "vmsketch-1"
+      - "vmsketch-2"
     command:
       - "--storageNode=vmstorage-1:8400"
       - "--storageNode=vmstorage-2:8400"
