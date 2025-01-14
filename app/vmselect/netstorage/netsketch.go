@@ -830,8 +830,6 @@ func SearchAndEvalSketchCache(qt *querytracer.Tracer, denyPartialResponse bool, 
 		err       error
 	}
 
-	return nil, false, nil
-
 	sns := getSketchNodes()
 	snr := startSketchNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *sketchNode) any {
 		return execSearchQuerySketch(qt, sqs, func(qt *querytracer.Tracer, requestData []byte) any {
