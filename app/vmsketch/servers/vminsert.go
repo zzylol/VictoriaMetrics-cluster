@@ -25,14 +25,14 @@ var (
 	precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression "+
 		"at the cost of precision loss")
 	vminsertConnsShutdownDuration = flag.Duration("sketch.vminsertConnsShutdownDuration", 25*time.Second, "The time needed for gradual closing of vminsert connections during "+
-		"graceful shutdown. Bigger duration reduces spikes in CPU, RAM and disk IO load on the remaining vmstorage nodes during rolling restart. "+
+		"graceful shutdown. Bigger duration reduces spikes in CPU, RAM and disk IO load on the remaining vmsketch nodes during rolling restart. "+
 		"Smaller duration reduces the time needed to close all the vminsert connections, thus reducing the time for graceful shutdown. "+
 		"See https://docs.victoriametrics.com/cluster-victoriametrics/#improving-re-routing-performance-during-restart")
 )
 
 // VMInsertServer processes connections from vminsert.
 type VMInsertServer struct {
-	// storage is a pointer to the underlying storage.
+	// sketch is a pointer to the underlying sketch.
 	sketch *sketch.Sketch
 
 	// ln is the listener for incoming connections to the server.
@@ -49,7 +49,7 @@ type VMInsertServer struct {
 	stopFlag atomic.Bool
 }
 
-// NewVMInsertServer starts VMInsertServer at the given addr serving the given storage.
+// NewVMInsertServer starts VMInsertServer at the given addr serving the given sketch.
 func NewVMInsertServer(addr string, sketch *sketch.Sketch) (*VMInsertServer, error) {
 	ln, err := netutil.NewTCPListener("vminsert", addr, false, nil)
 	if err != nil {
@@ -100,7 +100,7 @@ func (s *VMInsertServer) run() {
 			}()
 
 			// There is no need in response compression, since
-			// vmstorage sends only small packets to vminsert.
+			// vmsketch sends only small packets to vminsert.
 			compressionLevel := 0
 			bc, err := handshake.VMInsertServer(c, compressionLevel)
 			if err != nil {
@@ -144,7 +144,7 @@ var (
 	vminsertMetricsRead = metrics.NewCounter("vm_sketch_vminsert_metrics_read_total")
 )
 
-// MustStop gracefully stops s so it no longer touches s.storage after returning.
+// MustStop gracefully stops s so it no longer touches s.sketch after returning.
 func (s *VMInsertServer) MustStop() {
 	// Mark the server as stoping.
 	s.setIsStopping()

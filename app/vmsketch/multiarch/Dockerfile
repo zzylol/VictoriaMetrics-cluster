@@ -9,7 +9,6 @@ COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certifica
 EXPOSE 8482
 EXPOSE 8400
 EXPOSE 8401
-EXPOSE 8410 
 ENTRYPOINT ["/vmsketch-prod"]
 ARG TARGETARCH
 COPY vmsketch-linux-${TARGETARCH}-prod ./vmsketch-prod

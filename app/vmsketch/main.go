@@ -17,7 +17,6 @@ import (
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/flagutil"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/httpserver"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/logger"
-	"github.com/zzylol/VictoriaMetrics-cluster/lib/mergeset"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/procutil"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/protoparser/common"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/pushmetrics"
@@ -80,8 +79,6 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
-	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexDBIndexBlocks.IntN())
-	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.IntN())
 
 	logger.Infof("opening sketch in memory")
 	startTime := time.Now()
