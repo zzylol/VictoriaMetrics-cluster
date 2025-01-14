@@ -64,38 +64,38 @@ services:
   
   # vmsketch shards. Each shard receives 1/N of all metrics sent to vminserts,
   # where N is number of vmsketches (2 in this case).
-  # vmsketch-1:
-  #   container_name: vmsketch-1
-  #   image: victoriametrics/vmsketch:heads-master-0-g5197fd5-dirty-469085e3
-  #   ports:
-  #     - 8582
-  #     - 8500
-  #     - 8501
-  #   restart: always
-  # vmsketch-2:
-  #   container_name: vmsketch-2
-  #   image: victoriametrics/vmsketch:heads-master-0-g5197fd5-dirty-469085e3
-  #   ports:
-  #     - 8582
-  #     - 8500
-  #     - 8501
-  #   restart: always
+  vmsketch-1:
+    container_name: vmsketch-1
+    image: victoriametrics/vmsketch:heads-master-0-g5197fd5-dirty-469085e3
+    ports:
+      - 8482
+      - 8500
+      - 8501
+    restart: always
+  vmsketch-2:
+    container_name: vmsketch-2
+    image: victoriametrics/vmsketch:heads-master-0-g5197fd5-dirty-469085e3
+    ports:
+      - 8482
+      - 8500
+      - 8501
+    restart: always
 
   # vminsert is ingestion frontend. It receives metrics pushed by vmagent,
   # pre-process them and distributes across configured vmstorage shards.
   vminsert:
     container_name: vminsert
-    image: victoriametrics/vminsert:v1.108.1-cluster 
+    image: victoriametrics/vminsert:heads-master-0-g5197fd5-dirty-469085e3
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
-      # - "vmsketch-1"
-      # - "vmsketch-2"
+      - "vmsketch-1"
+      - "vmsketch-2"
     command:
       - "--storageNode=vmstorage-1:8400"
       - "--storageNode=vmstorage-2:8400"
-      # - "--sketchNode=vmsketch-1:8500"
-      # - "--sketchNode=vmsketch-2:8500"
+      - "--sketchNode=vmsketch-1:8500"
+      - "--sketchNode=vmsketch-2:8500"
     ports:
       - 8480:8480
     restart: always
@@ -108,9 +108,13 @@ services:
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
+      - "vmsketch-1"
+      - "vmsketch-2"
     command:
       - "--storageNode=vmstorage-1:8401"
       - "--storageNode=vmstorage-2:8401"
+      - "--sketchNode=vmsketch-1:8501"
+      - "--sketchNode=vmsketch-2:8501"
       - "--vmalert.proxyURL=http://vmalert:8880"
     ports:
       - 8481
@@ -121,9 +125,13 @@ services:
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
+      - "vmsketch-1"
+      - "vmsketch-2"
     command:
       - "--storageNode=vmstorage-1:8401"
       - "--storageNode=vmstorage-2:8401"
+      - "--sketchNode=vmsketch-1:8501"
+      - "--sketchNode=vmsketch-2:8501"
       - "--vmalert.proxyURL=http://vmalert:8880"
     ports:
       - 8481

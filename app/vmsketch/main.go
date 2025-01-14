@@ -110,7 +110,7 @@ func main() {
 
 	listenAddrs := *httpListenAddrs
 	if len(listenAddrs) == 0 {
-		listenAddrs = []string{":8410"}
+		listenAddrs = []string{":8582"}
 	}
 	requestHandler := newRequestHandler(sketch)
 	go httpserver.Serve(listenAddrs, useProxyProtocol, requestHandler)
@@ -177,22 +177,6 @@ var (
 	staleSnapshotsRemoverWG sync.WaitGroup
 )
 
-var (
-	activeForceMerges = metrics.NewCounter("vm_active_force_merges")
-
-	snapshotsCreateTotal       = metrics.NewCounter(`vm_http_requests_total{path="/snapshot/create"}`)
-	snapshotsCreateErrorsTotal = metrics.NewCounter(`vm_http_request_errors_total{path="/snapshot/create"}`)
-
-	snapshotsListTotal       = metrics.NewCounter(`vm_http_requests_total{path="/snapshot/list"}`)
-	snapshotsListErrorsTotal = metrics.NewCounter(`vm_http_request_errors_total{path="/snapshot/list"}`)
-
-	snapshotsDeleteTotal       = metrics.NewCounter(`vm_http_requests_total{path="/snapshot/delete"}`)
-	snapshotsDeleteErrorsTotal = metrics.NewCounter(`vm_http_request_errors_total{path="/snapshot/delete"}`)
-
-	snapshotsDeleteAllTotal       = metrics.NewCounter(`vm_http_requests_total{path="/snapshot/delete_all"}`)
-	snapshotsDeleteAllErrorsTotal = metrics.NewCounter(`vm_http_request_errors_total{path="/snapshot/delete_all"}`)
-)
-
 func writeSketchMetrics(w io.Writer, sketch *sketch.Sketch) {
 
 	isReadOnly := 0
@@ -211,8 +195,6 @@ func jsonResponseError(w http.ResponseWriter, err error) {
 }
 
 func usage() {
-	const s = `
-vmsketch caches time series intermediate results based on query statistics and returns the queried results to vmselect.
-`
+	const s = `vmsketch caches time series intermediate results based on query statistics and returns the queried results to vmselect.`
 	flagutil.Usage(s)
 }

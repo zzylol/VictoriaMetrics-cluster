@@ -46,7 +46,7 @@ func getSketchNodes() []*sketchNode {
 func newSketchNode(ms *metrics.Set, group *sketchNodesGroup, addr string) *sketchNode {
 	if _, _, err := net.SplitHostPort(addr); err != nil {
 		// Automatically add missing port.
-		addr += ":8410"
+		addr += ":8501"
 	}
 	// There is no need in requests compression, since vmselect requests are usually very small.
 	connPool := netutil.NewConnPool(ms, "vmselect", addr, handshake.VMSelectClient, 0, *vmstorageDialTimeout, *vmstorageUserTimeout)
@@ -134,6 +134,20 @@ type sketchNodesGroup struct {
 
 	// groupsCount is the number of groups in the list the given group belongs to
 	groupsCount int
+}
+
+// Init initializes storage nodes' connections to the given addrs.
+//
+// MustStop must be called when the initialized connections are no longer needed.
+func InitSketch(sketch_addrs []string) {
+	sknb := initSketchNodes(sketch_addrs)
+	setSketchNodesBucket(sknb)
+}
+
+// MustStop gracefully stops netstorage.
+func MustStopSketch() {
+	sknb := getSketchNodesBucket()
+	mustStopSketchNodes(sknb)
 }
 
 func initSketchNodeGroups(addrs []string) map[string]*sketchNodesGroup {

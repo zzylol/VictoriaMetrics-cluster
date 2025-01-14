@@ -114,17 +114,17 @@ func main() {
 		logger.Fatalf("found equal addresses of storage nodes in the -storageNodes flag: %q", duplicatedAddr)
 	}
 
-	logger.Infof("initializing netsketch for sketchNodes %s...", *sketchNodes)
+	// logger.Infof("initializing netsketch for sketchNodes %s...", *sketchNodes)
 
-	if len(*sketchNodes) == 0 {
-		logger.Fatalf("missing -sketchNode arg")
-	}
-	if hasEmptyValues(*sketchNodes) {
-		logger.Fatalf("found empty address of sketch node in the -sketchNodes flag, please make sure that all -sketchNode args are non-empty")
-	}
-	if duplicatedAddr := checkDuplicates(*sketchNodes); duplicatedAddr != "" {
-		logger.Fatalf("found equal addresses of sketch nodes in the -sketchNodes flag: %q", duplicatedAddr)
-	}
+	// if len(*sketchNodes) == 0 {
+	// 	logger.Fatalf("missing -sketchNode arg")
+	// }
+	// if hasEmptyValues(*sketchNodes) {
+	// 	logger.Fatalf("found empty address of sketch node in the -sketchNodes flag, please make sure that all -sketchNode args are non-empty")
+	// }
+	// if duplicatedAddr := checkDuplicates(*sketchNodes); duplicatedAddr != "" {
+	// 	logger.Fatalf("found equal addresses of sketch nodes in the -sketchNodes flag: %q", duplicatedAddr)
+	// }
 
 	hashSeed_storage := uint64(0)
 	if *clusternativeListenAddr != "" {
@@ -140,7 +140,7 @@ func main() {
 		// See https://github.com/zzylol/VictoriaMetrics-cluster/issues/1672
 		hashSeed_sketch = 0xabcdef0123456789
 	}
-	netstorage.Init(*storageNodes, hashSeed_storage, hashSeed_sketch)
+	netstorage.Init(*storageNodes, hashSeed_storage, *sketchNodes, hashSeed_sketch)
 	logger.Infof("successfully initialized netstorage in %.3f seconds", time.Since(startTime).Seconds())
 
 	relabel.Init()

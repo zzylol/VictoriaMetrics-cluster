@@ -67,23 +67,23 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 		}
 		atLocal := ctx.GetLocalAuthToken(at)
 
-		sketchNodeIdx := ctx_sketch.GetSketchNodeIdx(atLocal, ctx.Labels)
+		// sketchNodeIdx := ctx_sketch.GetSketchNodeIdx(atLocal, ctx.Labels)
 		storageNodeIdx := ctx.GetStorageNodeIdx(atLocal, ctx.Labels)
 		ctx.MetricNameBuf = ctx.MetricNameBuf[:0]
-		ctx_sketch.MetricNameBuf = ctx_sketch.MetricNameBuf[:0]
+		// ctx_sketch.MetricNameBuf = ctx_sketch.MetricNameBuf[:0]
 		samples := ts.Samples
 		for i := range samples {
 			r := &samples[i]
 			if len(ctx.MetricNameBuf) == 0 {
 				ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ctx.Labels)
-				ctx_sketch.MetricNameBuf = storage.MarshalMetricNameRaw(ctx_sketch.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ctx_sketch.Labels)
+				// ctx_sketch.MetricNameBuf = storage.MarshalMetricNameRaw(ctx_sketch.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ctx_sketch.Labels)
 			}
 			if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, r.Timestamp, r.Value); err != nil {
 				return err
 			}
-			if err := ctx_sketch.WriteDataPointExtSketch(sketchNodeIdx, ctx_sketch.MetricNameBuf, r.Timestamp, r.Value); err != nil {
-				return err
-			}
+			// if err := ctx_sketch.WriteDataPointExtSketch(sketchNodeIdx, ctx_sketch.MetricNameBuf, r.Timestamp, r.Value); err != nil {
+			// 	return err
+			// }
 		}
 		perTenantRows[*atLocal] += len(ts.Samples)
 	}

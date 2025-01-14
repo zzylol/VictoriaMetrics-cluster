@@ -197,3 +197,10 @@ Restart Docker:
 sudo systemctl daemon-reload
 sudo systemctl restart docker
 ```
+
+# Start each component individually without docker
+```
+./bin/vmstorage --storageDataPath=./
+./bin/vmselect 
+./bin/vminsert-prod --storageNode=127.0.0.1:8400 --sketchNode=127.0.0.1:8500
+```

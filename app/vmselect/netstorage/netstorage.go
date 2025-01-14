@@ -3119,21 +3119,15 @@ func getStorageNodes() []*storageNode {
 // Init initializes storage nodes' connections to the given addrs.
 //
 // MustStop must be called when the initialized connections are no longer needed.
-func Init(storage_addrs []string, sketch_addrs []string) {
+func Init(storage_addrs []string) {
 	snb := initStorageNodes(storage_addrs)
 	setStorageNodesBucket(snb)
-
-	sknb := initSketchNodes(sketch_addrs)
-	setSketchNodesBucket(sknb)
 }
 
 // MustStop gracefully stops netstorage.
 func MustStop() {
 	snb := getStorageNodesBucket()
 	mustStopStorageNodes(snb)
-
-	sknb := getSketchNodesBucket()
-	mustStopSketchNodes(sknb)
 }
 
 func initStorageNodes(addrs []string) *storageNodesBucket {

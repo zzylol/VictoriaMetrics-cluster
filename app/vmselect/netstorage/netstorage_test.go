@@ -12,21 +12,21 @@ func TestInitStopNodes(t *testing.T) {
 		t.Fatalf("cannot set vmstorageDialTimeout flag: %s", err)
 	}
 	for i := 0; i < 3; i++ {
-		Init([]string{"host1", "host2"}, []string{"host1", "host2"})
+		Init([]string{"host1", "host2"})
 		runtime.Gosched()
 		MustStop()
 	}
 
 	// Try initializing the netstorage with bigger number of nodes
 	for i := 0; i < 3; i++ {
-		Init([]string{"host1", "host2", "host3"}, []string{"host1", "host2", "host3"})
+		Init([]string{"host1", "host2", "host3"})
 		runtime.Gosched()
 		MustStop()
 	}
 
 	// Try initializing the netstorage with smaller number of nodes
 	for i := 0; i < 3; i++ {
-		Init([]string{"host1"}, []string{"host1"})
+		Init([]string{"host1"})
 		runtime.Gosched()
 		MustStop()
 	}
