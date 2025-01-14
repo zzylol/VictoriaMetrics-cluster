@@ -133,7 +133,7 @@ sudo make package
 sudo docker image ls # list all images
 ```
 
-2. Change image names and tags in docker-compose-cluster.yml
+2. Change image names and tags in docker-compose-cluster.yml after each image compilation
 
 3. Start and Shutdown the cluster (single machine)
 
@@ -181,6 +181,7 @@ http://hostname:8427/select/0/prometheus/vmui/
 
 # Change default docker volume storage
 ```
+mkdir /mydata/docker_volumes
 vim /lib/systemd/system/docker.service
 ```
 Edit the file as such:
@@ -189,5 +190,10 @@ Edit the file as such:
 ExecStart=/usr/bin/dockerd -H fd:// $DOCKER_OPTS
 
 # New
-ExecStart=/usr/bin/dockerd --data-root /new_location/ -H fd:// $DOCKER_OPTS
+ExecStart=/usr/bin/dockerd --data-root /mydata/docker_volumes/ -H fd:// $DOCKER_OPTS
+```
+Restart Docker:
+```
+sudo systemctl daemon-reload
+sudo systemctl restart docker
 ```
