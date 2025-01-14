@@ -16,9 +16,12 @@ import (
 )
 
 var (
-	rowsInserted       = metrics.NewCounter(`vm_rows_inserted_total{type="clusternative"}`)
-	rowsTenantInserted = tenantmetrics.NewCounterMap(`vm_tenant_inserted_rows_total{type="clusternative"}`)
-	rowsPerInsert      = metrics.NewHistogram(`vm_rows_per_insert{type="clusternative"}`)
+	rowsInserted             = metrics.NewCounter(`vm_rows_inserted_total{type="clusternative"}`)
+	rowsTenantInserted       = tenantmetrics.NewCounterMap(`vm_tenant_inserted_rows_total{type="clusternative"}`)
+	rowsPerInsert            = metrics.NewHistogram(`vm_rows_per_insert{type="clusternative"}`)
+	rowsInsertedSketch       = metrics.NewCounter(`vm_rows_inserted_sketch_total{type="clusternative"}`)
+	rowsTenantInsertedSketch = tenantmetrics.NewCounterMap(`vm_tenant_inserted_rows_sketch_total{type="clusternative"}`)
+	rowsPerInsertSketch      = metrics.NewHistogram(`vm_rows_per_insert_sketch{type="clusternative"}`)
 )
 
 // InsertHandler processes data from vminsert nodes.
@@ -83,5 +86,8 @@ func insertRows(rows []storage.MetricRow) error {
 	}
 	rowsInserted.Add(len(rows))
 	rowsPerInsert.Update(float64(len(rows)))
+
+	rowsInsertedSketch.Add(len(rows))
+	rowsPerInsertSketch.Update(float64(len(rows)))
 	return ctx.FlushBufs()
 }
