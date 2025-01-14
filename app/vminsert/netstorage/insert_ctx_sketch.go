@@ -131,7 +131,7 @@ func (ctx *InsertCtxSketch) WriteDataPointExtSketch(sketchNodeIdx int, metricNam
 	sknb := ctx.sknb
 	sn := sknb.sns[sketchNodeIdx]
 	bufNew := storage.MarshalMetricRow(br.buf, metricNameRaw, timestamp, value)
-	if len(bufNew) >= maxBufSizePerStorageNode {
+	if len(bufNew) >= maxBufSizePerSketchNode {
 		// Send buf to sn, since it is too big.
 		if err := br.pushToSketch(sknb, sn); err != nil {
 			return err

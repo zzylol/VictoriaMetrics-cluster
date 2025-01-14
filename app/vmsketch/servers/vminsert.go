@@ -24,7 +24,7 @@ import (
 var (
 	precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression "+
 		"at the cost of precision loss")
-	vminsertConnsShutdownDuration = flag.Duration("storage.vminsertConnsShutdownDuration", 25*time.Second, "The time needed for gradual closing of vminsert connections during "+
+	vminsertConnsShutdownDuration = flag.Duration("sketch.vminsertConnsShutdownDuration", 25*time.Second, "The time needed for gradual closing of vminsert connections during "+
 		"graceful shutdown. Bigger duration reduces spikes in CPU, RAM and disk IO load on the remaining vmstorage nodes during rolling restart. "+
 		"Smaller duration reduces the time needed to close all the vminsert connections, thus reducing the time for graceful shutdown. "+
 		"See https://docs.victoriametrics.com/cluster-victoriametrics/#improving-re-routing-performance-during-restart")
@@ -139,9 +139,9 @@ func (s *VMInsertServer) run() {
 }
 
 var (
-	vminsertConns       = metrics.NewCounter("vm_vminsert_conns")
-	vminsertConnErrors  = metrics.NewCounter("vm_vminsert_conn_errors_total")
-	vminsertMetricsRead = metrics.NewCounter("vm_vminsert_metrics_read_total")
+	vminsertConns       = metrics.NewCounter("vm_sketch_vminsert_conns")
+	vminsertConnErrors  = metrics.NewCounter("vm_sketch_vminsert_conn_errors_total")
+	vminsertMetricsRead = metrics.NewCounter("vm_sketch_vminsert_metrics_read_total")
 )
 
 // MustStop gracefully stops s so it no longer touches s.storage after returning.
