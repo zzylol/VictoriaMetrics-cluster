@@ -16,9 +16,12 @@ import (
 )
 
 var (
-	rowsInserted       = metrics.NewCounter(`vm_rows_inserted_total{type="promremotewrite"}`)
-	rowsTenantInserted = tenantmetrics.NewCounterMap(`vm_tenant_inserted_rows_total{type="promremotewrite"}`)
-	rowsPerInsert      = metrics.NewHistogram(`vm_rows_per_insert{type="promremotewrite"}`)
+	rowsInserted               = metrics.NewCounter(`vm_rows_inserted_total{type="promremotewrite"}`)
+	rowsTenantInserted         = tenantmetrics.NewCounterMap(`vm_tenant_inserted_rows_total{type="promremotewrite"}`)
+	rowsPerInsert              = metrics.NewHistogram(`vm_rows_per_insert{type="promremotewrite"}`)
+	rowsInsertedToSketch       = metrics.NewCounter(`vm_rows_inserted_sketch_total{type="promremotewrite"}`)
+	rowsTenantInsertedToSketch = tenantmetrics.NewCounterMap(`vm_tenant_inserted_rows_sketch_total{type="promremotewrite"}`)
+	rowsPerInsertToSketch      = metrics.NewHistogram(`vm_rows_per_insert_sketch{type="promremotewrite"}`)
 )
 
 // InsertHandler processes remote write for prometheus.
@@ -90,5 +93,10 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 	rowsInserted.Add(rowsTotal)
 	rowsTenantInserted.MultiAdd(perTenantRows)
 	rowsPerInsert.Update(float64(rowsTotal))
+
+	rowsInsertedToSketch.Add(rowsTotal)
+	rowsTenantInsertedToSketch.MultiAdd(perTenantRows)
+	rowsPerInsertToSketch.Update(float64(rowsTotal))
+
 	return ctx.FlushBufs()
 }
