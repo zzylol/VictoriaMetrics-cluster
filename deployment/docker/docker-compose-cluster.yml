@@ -66,7 +66,7 @@ services:
   # where N is number of vmsketches (2 in this case).
   vmsketch-1:
     container_name: vmsketch-1
-    image: victoriametrics/vmsketch:heads-master-0-gcaf55c3-dirty-eb18e8d7
+    image: victoriametrics/vmsketch:heads-master-0-gcbf80f8-dirty-f5d4290b
     ports:
       - 8582
       - 8500
@@ -74,7 +74,7 @@ services:
     restart: always
   vmsketch-2:
     container_name: vmsketch-2
-    image: victoriametrics/vmsketch:heads-master-0-gcaf55c3-dirty-eb18e8d7
+    image: victoriametrics/vmsketch:heads-master-0-gcbf80f8-dirty-f5d4290b
     ports:
       - 8582
       - 8500
@@ -85,7 +85,7 @@ services:
   # pre-process them and distributes across configured vmstorage shards.
   vminsert:
     container_name: vminsert
-    image: victoriametrics/vminsert:heads-master-0-gcaf55c3-dirty-6586a0c3 
+    image: victoriametrics/vminsert:heads-master-0-gcbf80f8-dirty-f5d4290b
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -104,26 +104,34 @@ services:
   # vmselect collects results from configured `--storageNode` shards.
   vmselect-1:
     container_name: vmselect-1
-    image: victoriametrics/vmselect:v1.108.1-cluster 
+    image: victoriametrics/vmselect:heads-master-0-gcbf80f8-dirty-b44f74c5
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
+      - "vmsketch-1"
+      - "vmsketch-2"
     command:
       - "--storageNode=vmstorage-1:8401"
       - "--storageNode=vmstorage-2:8401"
+      - "--sketchNode=vmsketch-1:8501"
+      - "--sketchNode=vmsketch-2:8501"
       - "--vmalert.proxyURL=http://vmalert:8880"
     ports:
       - 8481
     restart: always
   vmselect-2:
     container_name: vmselect-2
-    image: victoriametrics/vmselect:v1.108.1-cluster 
+    image: victoriametrics/vmselect:heads-master-0-gcbf80f8-dirty-b44f74c5
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
+      - "vmsketch-1"
+      - "vmsketch-2"
     command:
       - "--storageNode=vmstorage-1:8401"
       - "--storageNode=vmstorage-2:8401"
+      - "--sketchNode=vmsketch-1:8501"
+      - "--sketchNode=vmsketch-2:8501"
       - "--vmalert.proxyURL=http://vmalert:8880"
     ports:
       - 8481

@@ -107,20 +107,20 @@ func main() {
 		logger.Fatalf("found equal addresses of storage nodes in the -storageNodes flag: %q", duplicatedAddr)
 	}
 
-	// logger.Infof("starting netsketch at sketchNodes %s", *sketchNodes)
+	logger.Infof("starting netsketch at sketchNodes %s", *sketchNodes)
 
-	// if len(*sketchNodes) == 0 {
-	// 	logger.Fatalf("missing -sketchNode arg")
-	// }
-	// if hasEmptyValues(*sketchNodes) {
-	// 	logger.Fatalf("found empty address of sketch node in the -sketchNodes flag, please make sure that all -sketchNode args are non-empty")
-	// }
-	// if duplicatedAddr := checkDuplicates(*sketchNodes); duplicatedAddr != "" {
-	// 	logger.Fatalf("found equal addresses of sketch nodes in the -sketchNodes flag: %q", duplicatedAddr)
-	// }
+	if len(*sketchNodes) == 0 {
+		logger.Fatalf("missing -sketchNode arg")
+	}
+	if hasEmptyValues(*sketchNodes) {
+		logger.Fatalf("found empty address of sketch node in the -sketchNodes flag, please make sure that all -sketchNode args are non-empty")
+	}
+	if duplicatedAddr := checkDuplicates(*sketchNodes); duplicatedAddr != "" {
+		logger.Fatalf("found equal addresses of sketch nodes in the -sketchNodes flag: %q", duplicatedAddr)
+	}
 
 	netstorage.Init(*storageNodes)
-	// netstorage.InitSketch(*sketchNodes)
+	netstorage.InitSketch(*sketchNodes)
 
 	logger.Infof("started netstorage in %.3f seconds", time.Since(startTime).Seconds())
 
@@ -173,7 +173,7 @@ func main() {
 	logger.Infof("shutting down neststorage...")
 	startTime = time.Now()
 	netstorage.MustStop()
-	// netstorage.MustStopSketch()
+	netstorage.MustStopSketch()
 	if len(*cacheDataPath) > 0 {
 		promql.StopRollupResultCache()
 	}

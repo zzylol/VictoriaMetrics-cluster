@@ -55,7 +55,7 @@ func newSketchNode(ms *metrics.Set, group *sketchNodesGroup, addr string) *sketc
 		group:    group,
 		connPool: connPool,
 
-		concurrentQueries: ms.NewCounter(fmt.Sprintf(`vm_concurrent_queries{name="vmselect", addr=%q}`, addr)),
+		concurrentQueries: ms.NewCounter(fmt.Sprintf(`vm_concurrent_sketch_queries{name="vmselect", addr=%q}`, addr)),
 
 		registerMetricNamesRequests:        ms.NewCounter(fmt.Sprintf(`vm_requests_sketch_metric_name_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 		registerMetricNamesErrors:          ms.NewCounter(fmt.Sprintf(`sketchNode_vm_request_errors_sketch_metric_name_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
