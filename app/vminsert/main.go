@@ -114,17 +114,17 @@ func main() {
 		logger.Fatalf("found equal addresses of storage nodes in the -storageNodes flag: %q", duplicatedAddr)
 	}
 
-	// logger.Infof("initializing netsketch for sketchNodes %s...", *sketchNodes)
+	logger.Infof("initializing netsketch for sketchNodes %s...", *sketchNodes)
 
-	// if len(*sketchNodes) == 0 {
-	// 	logger.Fatalf("missing -sketchNode arg")
-	// }
-	// if hasEmptyValues(*sketchNodes) {
-	// 	logger.Fatalf("found empty address of sketch node in the -sketchNodes flag, please make sure that all -sketchNode args are non-empty")
-	// }
-	// if duplicatedAddr := checkDuplicates(*sketchNodes); duplicatedAddr != "" {
-	// 	logger.Fatalf("found equal addresses of sketch nodes in the -sketchNodes flag: %q", duplicatedAddr)
-	// }
+	if len(*sketchNodes) == 0 {
+		logger.Fatalf("missing -sketchNode arg")
+	}
+	if hasEmptyValues(*sketchNodes) {
+		logger.Fatalf("found empty address of sketch node in the -sketchNodes flag, please make sure that all -sketchNode args are non-empty")
+	}
+	if duplicatedAddr := checkDuplicates(*sketchNodes); duplicatedAddr != "" {
+		logger.Fatalf("found equal addresses of sketch nodes in the -sketchNodes flag: %q", duplicatedAddr)
+	}
 
 	hashSeed_storage := uint64(0)
 	if *clusternativeListenAddr != "" {

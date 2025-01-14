@@ -513,8 +513,9 @@ func setStorageNodesBucket(snb *storageNodesBucket) {
 func Init(storage_addrs []string, hashSeed_storage uint64, sketch_addrs []string, hashSeed_sketch uint64) {
 	snb := initStorageNodes(storage_addrs, hashSeed_storage)
 	setStorageNodesBucket(snb)
-	// sknb := initSketchNodes(sketch_addrs, hashSeed_sketch)
-	// setSketchNodesBucket(sknb)
+
+	sknb := initSketchNodes(sketch_addrs, hashSeed_sketch)
+	setSketchNodesBucket(sknb)
 }
 
 // MustStop stops netstorage.
@@ -522,8 +523,8 @@ func MustStop() {
 	snb := getStorageNodesBucket()
 	mustStopStorageNodes(snb)
 
-	// sknb := getSketchNodesBucket()
-	// mustStopSketchNodes(sknb)
+	sknb := getSketchNodesBucket()
+	mustStopSketchNodes(sknb)
 }
 
 func initStorageNodes(addrs []string, hashSeed uint64) *storageNodesBucket {

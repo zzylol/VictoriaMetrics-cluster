@@ -134,36 +134,36 @@ func initSketchNodes(addrs []string, hashSeed uint64) *sketchNodesBucket {
 
 			stopCh: stopCh,
 
-			dialErrors:            ms.NewCounter(fmt.Sprintf(`vm_rpc_dial_errors_total{name="vminsert", addr=%q}`, addr)),
-			handshakeErrors:       ms.NewCounter(fmt.Sprintf(`vm_rpc_handshake_errors_total{name="vminsert", addr=%q}`, addr)),
-			connectionErrors:      ms.NewCounter(fmt.Sprintf(`vm_rpc_connection_errors_total{name="vminsert", addr=%q}`, addr)),
-			rowsPushed:            ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_pushed_total{name="vminsert", addr=%q}`, addr)),
-			rowsSent:              ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_sent_total{name="vminsert", addr=%q}`, addr)),
-			rowsDroppedOnOverload: ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_dropped_on_overload_total{name="vminsert", addr=%q}`, addr)),
-			rowsReroutedFromHere:  ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_from_here_total{name="vminsert", addr=%q}`, addr)),
-			rowsReroutedToHere:    ms.NewCounter(fmt.Sprintf(`vm_rpc_rows_rerouted_to_here_total{name="vminsert", addr=%q}`, addr)),
-			sendDurationSeconds:   ms.NewFloatCounter(fmt.Sprintf(`vm_rpc_send_duration_seconds_total{name="vminsert", addr=%q}`, addr)),
+			dialErrors:            ms.NewCounter(fmt.Sprintf(`vm_sketch_rpc_dial_errors_total{name="vminsert", addr=%q}`, addr)),
+			handshakeErrors:       ms.NewCounter(fmt.Sprintf(`vm_sketch_rpc_handshake_errors_total{name="vminsert", addr=%q}`, addr)),
+			connectionErrors:      ms.NewCounter(fmt.Sprintf(`vm_sketch_rpc_connection_errors_total{name="vminsert", addr=%q}`, addr)),
+			rowsPushed:            ms.NewCounter(fmt.Sprintf(`vm_sketch_rpc_rows_pushed_total{name="vminsert", addr=%q}`, addr)),
+			rowsSent:              ms.NewCounter(fmt.Sprintf(`vm_sketch_rpc_rows_sent_total{name="vminsert", addr=%q}`, addr)),
+			rowsDroppedOnOverload: ms.NewCounter(fmt.Sprintf(`vm_sketch_rpc_rows_dropped_on_overload_total{name="vminsert", addr=%q}`, addr)),
+			rowsReroutedFromHere:  ms.NewCounter(fmt.Sprintf(`vm_sketch_rpc_rows_rerouted_from_here_total{name="vminsert", addr=%q}`, addr)),
+			rowsReroutedToHere:    ms.NewCounter(fmt.Sprintf(`vm_sketch_rpc_rows_rerouted_to_here_total{name="vminsert", addr=%q}`, addr)),
+			sendDurationSeconds:   ms.NewFloatCounter(fmt.Sprintf(`vm_sketch_rpc_send_duration_seconds_total{name="vminsert", addr=%q}`, addr)),
 		}
 		sn.brCond = sync.NewCond(&sn.brLock)
-		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_rows_pending{name="vminsert", addr=%q}`, addr), func() float64 {
+		_ = ms.NewGauge(fmt.Sprintf(`vm_sketch_rpc_rows_pending{name="vminsert", addr=%q}`, addr), func() float64 {
 			sn.brLock.Lock()
 			n := sn.br.rows
 			sn.brLock.Unlock()
 			return float64(n)
 		})
-		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_buf_pending_bytes{name="vminsert", addr=%q}`, addr), func() float64 {
+		_ = ms.NewGauge(fmt.Sprintf(`vm_sketch_rpc_buf_pending_bytes{name="vminsert", addr=%q}`, addr), func() float64 {
 			sn.brLock.Lock()
 			n := len(sn.br.buf)
 			sn.brLock.Unlock()
 			return float64(n)
 		})
-		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_vmsketch_is_reachable{name="vminsert", addr=%q}`, addr), func() float64 {
+		_ = ms.NewGauge(fmt.Sprintf(`vm_sketch_rpc_vmsketch_is_reachable{name="vminsert", addr=%q}`, addr), func() float64 {
 			if sn.isBroken.Load() {
 				return 0
 			}
 			return 1
 		})
-		_ = ms.NewGauge(fmt.Sprintf(`vm_rpc_vmsketch_is_read_only{name="vminsert", addr=%q}`, addr), func() float64 {
+		_ = ms.NewGauge(fmt.Sprintf(`vm_sketch_rpc_vmsketch_is_read_only{name="vminsert", addr=%q}`, addr), func() float64 {
 			if sn.isReadOnly.Load() {
 				return 1
 			}
@@ -218,7 +218,7 @@ func sendSketchBufToReplicasNonblocking(snb *sketchNodesBucket, br *bufRows, snI
 			if attempts > len(sns) {
 				if i == 0 {
 					// The data wasn't replicated at all.
-					cannotReplicateLogger.Warnf("cannot push %d bytes with %d rows to storage nodes, since all the nodes are temporarily unavailable; "+
+					cannotReplicateLogger.Warnf("cannot push %d bytes with %d rows to sketch nodes, since all the nodes are temporarily unavailable; "+
 						"re-trying to send the data soon", len(br.buf), br.rows)
 					return false
 				}
@@ -227,7 +227,7 @@ func sendSketchBufToReplicasNonblocking(snb *sketchNodesBucket, br *bufRows, snI
 				// So it is better returning true.
 				rowsIncompletelyReplicatedTotal.Add(br.rows)
 				incompleteReplicationLogger.Warnf("cannot make a copy #%d out of %d copies according to -replicationFactor=%d for %d bytes with %d rows, "+
-					"since a part of storage nodes is temporarily unavailable", i+1, replicas, *replicationFactor, len(br.buf), br.rows)
+					"since a part of sketch nodes is temporarily unavailable", i+1, replicas, *replicationFactor, len(br.buf), br.rows)
 				return true
 			}
 			if idx >= len(sns) {
@@ -310,7 +310,7 @@ func (sn *sketchNode) push(snb *sketchNodesBucket, buf []byte, rows int) error {
 	if *dropSamplesOnOverload && !sn.isReadOnly.Load() {
 		sn.rowsDroppedOnOverload.Add(rows)
 		dropSamplesOnOverloadLogger.Warnf("some rows dropped, because -dropSamplesOnOverload is set and vmstorage %s cannot accept new rows now. "+
-			"See vm_rpc_rows_dropped_on_overload_total metric at /metrics page", sn.dialer.Addr())
+			"See vm_sketch_rpc_rows_dropped_on_overload_total metric at /metrics page", sn.dialer.Addr())
 		return nil
 	}
 	// Slow path - sn cannot accept buf now, so re-route it to other vmstorage nodes.
@@ -530,7 +530,7 @@ func sendToConnSketch(bc *handshake.BufferedConn, buf []byte) error {
 		// vmstorage is in readonly mode
 		return errStorageReadOnly
 	default:
-		return fmt.Errorf("unexpected `ack` received from vmstorage; got %d; want 1 or 2", sizeBuf.B[0])
+		return fmt.Errorf("unexpected `ack` received from vmsketch; got %d; want 1 or 2", sizeBuf.B[0])
 	}
 
 	return nil
@@ -824,7 +824,7 @@ func (sn *sketchNode) dial() (*handshake.BufferedConn, error) {
 var (
 	maxBufSizePerSketchNode int
 
-	reroutedRowsProcessedSketch           = metrics.NewCounter(`vm_rpc_rerouted_rows_processed_sketch_total{name="vminsert"}`)
-	reroutesTotalSketch                   = metrics.NewCounter(`vm_rpc_reroutes_sketch_total{name="vminsert"}`)
-	rowsIncompletelyReplicatedTotalSketch = metrics.NewCounter(`vm_rpc_rows_incompletely_replicated_sketch_total{name="vminsert"}`)
+	reroutedRowsProcessedSketch           = metrics.NewCounter(`vm_sketch_rpc_rerouted_rows_processed_sketch_total{name="vminsert"}`)
+	reroutesTotalSketch                   = metrics.NewCounter(`vm_sketch_rpc_reroutes_sketch_total{name="vminsert"}`)
+	rowsIncompletelyReplicatedTotalSketch = metrics.NewCounter(`vm_sketch_rpc_rows_incompletely_replicated_sketch_total{name="vminsert"}`)
 )
