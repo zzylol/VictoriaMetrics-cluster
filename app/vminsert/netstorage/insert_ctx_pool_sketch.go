@@ -14,7 +14,7 @@ func GetInsertCtxSketch() *InsertCtxSketch {
 	case ctx := <-insertCtxPoolChSketch:
 		return ctx
 	default:
-		if v := insertCtxPool.Get(); v != nil {
+		if v := insertCtxPoolSketch.Get(); v != nil {
 			return v.(*InsertCtxSketch)
 		}
 		return &InsertCtxSketch{}
@@ -29,7 +29,7 @@ func PutInsertCtxSketch(ctx *InsertCtxSketch) {
 	select {
 	case insertCtxPoolChSketch <- ctx:
 	default:
-		insertCtxPool.Put(ctx)
+		insertCtxPoolSketch.Put(ctx)
 	}
 }
 
