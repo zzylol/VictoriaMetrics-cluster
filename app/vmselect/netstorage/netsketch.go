@@ -817,7 +817,7 @@ func (sn *sketchNode) searchAndEvalOnConn(bc *handshake.BufferedConn, requestDat
 There will be network connections
 */
 func SearchAndEvalSketchCache(qt *querytracer.Tracer, denyPartialResponse bool, sqs *sketch.SearchQuery, deadline searchutils.Deadline) ([]*sketch.Timeseries, bool, error) {
-	qt = qt.NewChild("try to search adn eval query from sketch cache: %s", sqs)
+	qt = qt.NewChild("try to search and eval query from sketch cache: %s", sqs)
 	defer qt.Done()
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
@@ -829,6 +829,8 @@ func SearchAndEvalSketchCache(qt *querytracer.Tracer, denyPartialResponse bool, 
 		tss       []*sketch.Timeseries
 		err       error
 	}
+
+	return nil, false, nil
 
 	sns := getSketchNodes()
 	snr := startSketchNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *sketchNode) any {
