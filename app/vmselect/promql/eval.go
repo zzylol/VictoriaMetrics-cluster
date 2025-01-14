@@ -1792,12 +1792,15 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 
 	fmt.Println("VM ProcessSearchQuery Time:", since.Seconds(), "s")
 	funcNameID := sketch.GetFuncNameID(funcName)
-	sargs := getRollupArgForSketches(args, 0) // TODO
-	sketch_sq := sketch.NewSearchQuery(minTimestamp, ec.End, mnrs, funcNameID, sargs, ec.MaxSeries)
-	ts_results, isCovered, err := netstorage.SearchAndEvalSketchCache(qt, ec.DenyPartialResponse, sketch_sq, ec.Deadline)
-	if err == nil && isCovered {
-		output_ts_results := copy_ts_results(ts_results)
-		return output_ts_results, err
+	// if it's not supported function in VMSketch; just skip sketch look up
+	if funcNameID >= 1 && funcNameID <= 13 {
+		sargs := getRollupArgForSketches(args, 0) // TODO
+		sketch_sq := sketch.NewSearchQuery(minTimestamp, ec.End, mnrs, funcNameID, sargs, ec.MaxSeries)
+		ts_results, isCovered, err := netstorage.SearchAndEvalSketchCache(qt, ec.DenyPartialResponse, sketch_sq, ec.Deadline)
+		if err == nil && isCovered {
+			output_ts_results := copy_ts_results(ts_results)
+			return output_ts_results, err
+		}
 	}
 
 	// Verify timeseries fit available memory during rollup calculations.

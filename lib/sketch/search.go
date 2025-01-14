@@ -166,10 +166,19 @@ func (sq *SearchQuery) String() string {
 func (sq *SearchQuery) Marshal(dst []byte) []byte {
 	dst = encoding.MarshalVarInt64(dst, sq.MinTimestamp)
 	dst = encoding.MarshalVarInt64(dst, sq.MaxTimestamp)
+
 	dst = encoding.MarshalVarUint64(dst, uint64(len(sq.MetricNameRaws)))
 	for _, mn := range sq.MetricNameRaws {
 		dst = encoding.MarshalBytes(dst, mn)
 	}
+
+	dst = encoding.MarshalUint32(dst, sq.FuncNameID)
+
+	// dst = encoding.MarshalVarUint64(dst, uint64(len(sq.Args)))
+	// for _, arg := range sq.Args {
+	// 	dst = encoding.MarshalFloat64(dst, arg)
+	// }
+
 	dst = encoding.MarshalUint32(dst, uint32(sq.MaxMetrics))
 	return dst
 }

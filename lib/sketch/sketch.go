@@ -8,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/zzylol/VictoriaMetrics-cluster/app/vmselect/searchutils"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/cgroup"
+	"github.com/zzylol/VictoriaMetrics-cluster/lib/logger"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/querytracer"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/storage"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/syncwg"
@@ -116,6 +117,26 @@ func (s *Sketch) GetSketchCacheStatus(qt *querytracer.Tracer, deadline uint64) (
 }
 
 // RegisterMetricNames registers all the metrics from mrs in the storage.
+func (s *Sketch) RegisterSingleMetricNameFuncName(mn *storage.MetricName, funcName string, window int64, item_window int64) error {
+	WG.Add(1)
+	var firstWarn error
+
+	mn.SortTags()
+	err := s.sketchCache.NewVMSketchCacheInstance(mn, funcName, window, item_window)
+	if err != nil {
+		// Do not stop adding rows on error - just skip invalid row.
+		// This guarantees that invalid rows don't prevent
+		// from adding valid rows into the storage.
+		if firstWarn == nil {
+			firstWarn = fmt.Errorf("cannot NewVMSketchCacheInstance to sketch cache with MetricNameRaw %q: %w", mn, err)
+		}
+	}
+
+	WG.Done()
+	return firstWarn
+}
+
+// RegisterMetricNames registers all the metrics from mrs in the storage.
 func (s *Sketch) RegisterMetricNameFuncName(mrs []storage.MetricRow, funcName string, window int64, item_window int64) error {
 	WG.Add(1)
 	var firstWarn error
@@ -145,6 +166,10 @@ func (s *Sketch) RegisterMetricNameFuncName(mrs []storage.MetricRow, funcName st
 
 	WG.Done()
 	return firstWarn
+}
+
+func (s *Sketch) RegisterMetricName(qt *querytracer.Tracer, mn *storage.MetricName) error {
+	return s.sketchCache.RegisterMetricName(mn)
 }
 
 func (s *Sketch) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow) error {
@@ -188,8 +213,16 @@ func (s *Sketch) DeleteSeries(qt *querytracer.Tracer, MetricNameRaws [][]byte, d
 func (s *Sketch) SearchTimeSeriesCoverage(start, end int64, mn *storage.MetricName, funcName string, maxMetrics int) (*SketchResult, bool, error) {
 	sketchIns, lookup := s.sketchCache.LookupMetricNameFuncNamesTimeRange(mn, funcName, start, end)
 	if sketchIns == nil {
+		if err := s.RegisterSingleMetricNameFuncName(mn, funcName, (end-start)*4, (end-start)/100*4); err != nil {
+			return nil, false, fmt.Errorf("failed to register metric name and function name with window")
+		}
+		sketchIns, lookup = s.sketchCache.LookupMetricNameFuncNamesTimeRange(mn, funcName, start, end)
+	}
+
+	if sketchIns == nil {
 		return nil, false, fmt.Errorf("sketchIns doesn't allocated")
 	}
+
 	if !lookup {
 		fmt.Println(sketchIns.PrintMinMaxTimeRange(mn, funcName))
 		return nil, false, fmt.Errorf("sketch cache doesn't cover metricName %q", mn)
@@ -199,7 +232,14 @@ func (s *Sketch) SearchTimeSeriesCoverage(start, end int64, mn *storage.MetricNa
 }
 
 func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, start, end int64, funcNameID uint32, sargs []float64, maxMetrics int) (results []*Timeseries, isCovered bool, err error) {
+	// skip not supported rollup functions
+	if funcNameID <= 0 || funcNameID >= 14 {
+		return nil, false, nil
+	}
+
 	funcName := GetFuncName(funcNameID)
+
+	logger.Errorf("in SearchAndEval, funcNameID=%d, funcName=%s", funcNameID, funcName)
 
 	qt = qt.NewChild("rollup %s() over %d series", funcName, len(MetricNameRaws))
 	defer qt.Done()
@@ -224,6 +264,8 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 		}
 		srs.sketchInss = append(srs.sketchInss, *sr)
 	}
+
+	logger.Errorf("Started Sketch Eval()...")
 
 	workers := MaxWorkers()
 	if workers > len(MetricNameRaws) {

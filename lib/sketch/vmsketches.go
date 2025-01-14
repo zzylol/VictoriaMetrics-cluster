@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 
 	"github.com/cespare/xxhash"
+	"github.com/zzylol/VictoriaMetrics-cluster/lib/logger"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/storage"
 )
 
@@ -304,7 +305,6 @@ func (vs *VMSketches) LookupAndUpdateWindowMetricNameFuncName(mn *storage.Metric
 	hash := MetricNameHash(mn)
 	series := vs.series.getByHash(hash, mn)
 	if series == nil || series.sketchInstances == nil {
-		// fmt.Println("[lookup] no timeseries")
 		return false
 	}
 	stypes := funcSketchMap[funcName]
@@ -428,6 +428,7 @@ func (vs *VMSketches) AddRow(mn *storage.MetricName, t int64, value float64) err
 
 func (si *SketchInstances) Eval(mn *storage.MetricName, funcName string, args []float64, mint, maxt, cur_time int64) float64 {
 	sfunc := VMFunctionCalls[funcName]
+	logger.Errorf("funcName=%s, sfunc=%s", funcName, sfunc)
 	return sfunc(context.TODO(), si, args, mint, maxt, cur_time)
 }
 
@@ -451,7 +452,6 @@ func (vs *VMSketches) LookupMetricNameFuncNamesTimeRange(mn *storage.MetricName,
 	hash := MetricNameHash(mn)
 	series := vs.series.getByHash(hash, mn)
 	if series == nil || series.sketchInstances == nil {
-		// fmt.Println("[lookup] no timeseries")
 		return nil, false
 	}
 	stypes := make([]SketchType, 0)
@@ -529,6 +529,16 @@ func (vs *VMSketches) OutputTimeseriesCoverage(mn *storage.MetricName, funcNames
 			continue
 		}
 	}
+}
+
+func (vs *VMSketches) RegisterMetricName(mn *storage.MetricName) error {
+	mn.SortTags()
+	_, _, err := vs.getOrCreate(MetricNameHash(mn), mn)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (vs *VMSketches) RegisterMetricNames(mrs []storage.MetricRow) error {
