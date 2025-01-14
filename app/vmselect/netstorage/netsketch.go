@@ -516,7 +516,7 @@ func (sn *sketchNode) getSketchCacheStatus(qt *querytracer.Tracer, requestData [
 		status = st
 		return nil
 	}
-	if err := sn.execOnConnWithPossibleRetry(qt, "tsdbStatus_v5", f, deadline); err != nil {
+	if err := sn.execOnConnWithPossibleRetry(qt, "sketchCachetatus_v1", f, deadline); err != nil {
 		return nil, err
 	}
 	return status, nil
@@ -1157,7 +1157,7 @@ func RegisterMetricNamesSketch(qt *querytracer.Tracer, mrs []storage.MetricRow, 
 	return nil
 }
 
-// TSDBStatus returns tsdb status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
+// SketchCacheStatus returns sketch cache status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
 //
 // It accepts arbitrary filters on time series in sq.
 func SketchCacheStatus(qt *querytracer.Tracer, denyPartialResponse bool, sq *sketch.SearchQuery, focusLabel string, topN int, deadline searchutils.Deadline) (*storage.TSDBStatus, bool, error) {

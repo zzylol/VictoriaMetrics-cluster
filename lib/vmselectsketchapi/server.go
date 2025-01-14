@@ -68,6 +68,7 @@ type Server struct {
 	sketchCacheStatusRequests   *metrics.Counter
 	searchMetricNamesRequests   *metrics.Counter
 	searchRequests              *metrics.Counter
+	searchAndEvalRequests       *metrics.Counter
 
 	metricSketchesRead *metrics.Counter
 	metricRowsRead     *metrics.Counter
@@ -108,10 +109,10 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 		return nil, fmt.Errorf("unable to listen vmselectAddr %s: %w", addr, err)
 	}
 	concurrencyLimitCh := make(chan struct{}, limits.MaxConcurrentRequests)
-	_ = metrics.NewGauge(`vm_vmselect_sketch_concurrent_requests_capacity`, func() float64 {
+	_ = metrics.NewGauge(`vm_sketch_vmselect_sketch_concurrent_requests_capacity`, func() float64 {
 		return float64(cap(concurrencyLimitCh))
 	})
-	_ = metrics.NewGauge(`vm_vmselect_sketch_concurrent_requests_current`, func() float64 {
+	_ = metrics.NewGauge(`vm_sketch_vmselect_sketch_concurrent_requests_current`, func() float64 {
 		return float64(len(concurrencyLimitCh))
 	})
 	s := &Server{
@@ -122,26 +123,27 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 
 		concurrencyLimitCh: concurrencyLimitCh,
 
-		concurrencyLimitReached: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_concurrent_requests_limit_reached_total{addr=%q}`, addr)),
-		concurrencyLimitTimeout: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_concurrent_requests_limit_timeout_total{addr=%q}`, addr)),
+		concurrencyLimitReached: metrics.NewCounter(fmt.Sprintf(`vm_sketch_vmselect_concurrent_requests_limit_reached_total{addr=%q}`, addr)),
+		concurrencyLimitTimeout: metrics.NewCounter(fmt.Sprintf(`vm_sketch_vmselect_concurrent_requests_limit_timeout_total{addr=%q}`, addr)),
 
-		vmselectConns:      metrics.NewCounter(fmt.Sprintf(`vm_vmselect_conns{addr=%q}`, addr)),
-		vmselectConnErrors: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_conn_errors_total{addr=%q}`, addr)),
+		vmselectConns:      metrics.NewCounter(fmt.Sprintf(`vm_sketch_vmselect_conns{addr=%q}`, addr)),
+		vmselectConnErrors: metrics.NewCounter(fmt.Sprintf(`vm_sketch_vmselect_conn_errors_total{addr=%q}`, addr)),
 
-		indexSearchDuration: metrics.NewHistogram(fmt.Sprintf(`vm_index_search_duration_seconds{addr=%q}`, addr)),
+		indexSearchDuration: metrics.NewHistogram(fmt.Sprintf(`vm_sketch_index_search_duration_seconds{addr=%q}`, addr)),
 
-		registerMetricNamesRequests: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="registerMetricNames",addr=%q}`, addr)),
-		deleteSeriesRequests:        metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="deleteSeries",addr=%q}`, addr)),
-		labelNamesRequests:          metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="labelNames",addr=%q}`, addr)),
-		labelValuesRequests:         metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="labelValues",addr=%q}`, addr)),
-		tagValueSuffixesRequests:    metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="tagValueSuffixes",addr=%q}`, addr)),
-		seriesCountRequests:         metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="seriesSount",addr=%q}`, addr)),
-		sketchCacheStatusRequests:   metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="sketchCacheStatus",addr=%q}`, addr)),
-		searchMetricNamesRequests:   metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="searchMetricNames",addr=%q}`, addr)),
-		searchRequests:              metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="search",addr=%q}`, addr)),
+		registerMetricNamesRequests: metrics.NewCounter(fmt.Sprintf(`vm_sketch_vmselect_rpc_requests_total{action="registerMetricNames",addr=%q}`, addr)),
+		deleteSeriesRequests:        metrics.NewCounter(fmt.Sprintf(`vm_sketch_vmselect_rpc_requests_total{action="deleteSeries",addr=%q}`, addr)),
+		labelNamesRequests:          metrics.NewCounter(fmt.Sprintf(`vm_sketch_vmselect_rpc_requests_total{action="labelNames",addr=%q}`, addr)),
+		labelValuesRequests:         metrics.NewCounter(fmt.Sprintf(`vm_sketch_vmselect_rpc_requests_total{action="labelValues",addr=%q}`, addr)),
+		tagValueSuffixesRequests:    metrics.NewCounter(fmt.Sprintf(`vm_sketch_vmselect_rpc_requests_total{action="tagValueSuffixes",addr=%q}`, addr)),
+		seriesCountRequests:         metrics.NewCounter(fmt.Sprintf(`vm_sketch_vmselect_rpc_requests_total{action="seriesSount",addr=%q}`, addr)),
+		sketchCacheStatusRequests:   metrics.NewCounter(fmt.Sprintf(`vm_sketch_vmselect_rpc_requests_total{action="sketchCacheStatus",addr=%q}`, addr)),
+		searchMetricNamesRequests:   metrics.NewCounter(fmt.Sprintf(`vm_sketch_vmselect_rpc_requests_total{action="searchMetricNames",addr=%q}`, addr)),
+		searchRequests:              metrics.NewCounter(fmt.Sprintf(`vm_sketch_vmselect_rpc_requests_total{action="search",addr=%q}`, addr)),
+		searchAndEvalRequests:       metrics.NewCounter(fmt.Sprintf(`vm_sketch_vmselect_rpc_requests_total{action="searchAndEval",addr=%q}`, addr)),
 
-		metricSketchesRead: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_metric_sketches_read_total{addr=%q}`, addr)),
-		metricRowsRead:     metrics.NewCounter(fmt.Sprintf(`vm_vmselect_metric_rows_read_total{addr=%q}`, addr)),
+		metricSketchesRead: metrics.NewCounter(fmt.Sprintf(`vm_sketch_vmselect_metric_sketches_read_total{addr=%q}`, addr)),
+		metricRowsRead:     metrics.NewCounter(fmt.Sprintf(`vm_sketch_vmselect_metric_rows_read_total{addr=%q}`, addr)),
 	}
 
 	s.connsMap.Init("vmselect")
@@ -490,7 +492,7 @@ func (s *Server) processRequest(ctx *vmselectRequestCtx) error {
 	if err != nil {
 		return fmt.Errorf("cannot read traceEnabled: %w", err)
 	}
-	ctx.qt = querytracer.New(traceEnabled, "rpc call %s() at vmstorage", rpcName)
+	ctx.qt = querytracer.New(traceEnabled, "rpc call %s() at vmsketch", rpcName)
 
 	// Limit the time required for reading request args.
 	if err := ctx.bc.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
@@ -560,7 +562,7 @@ func (s *Server) processRPC(ctx *vmselectRequestCtx, rpcName string) error {
 		return s.processSearchAndEval(ctx)
 	case "seriesCount_v4":
 		return s.processSeriesCount(ctx)
-	case "sketchCachetatus_v5":
+	case "sketchCachetatus_v1":
 		return s.processSketchCacheStatus(ctx)
 	case "deleteSeries_v5":
 		return s.processDeleteSeries(ctx)

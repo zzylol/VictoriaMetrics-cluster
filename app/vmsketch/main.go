@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
@@ -168,11 +167,6 @@ func requestHandler(w http.ResponseWriter, r *http.Request, sketch *sketch.Sketc
 		return false
 	}
 }
-
-var (
-	staleSnapshotsRemoverCh chan struct{}
-	staleSnapshotsRemoverWG sync.WaitGroup
-)
 
 func writeSketchMetrics(w io.Writer, sketch *sketch.Sketch) {
 
