@@ -178,3 +178,16 @@ vmui:
 ```
 http://hostname:8427/select/0/prometheus/vmui/
 ```
+
+# Change default docker volume storage
+```
+vim /lib/systemd/system/docker.service
+```
+Edit the file as such:
+```
+# Old - taken from the generated docker.service file in Ubuntu 16.04's docker.io package
+ExecStart=/usr/bin/dockerd -H fd:// $DOCKER_OPTS
+
+# New
+ExecStart=/usr/bin/dockerd --data-root /new_location/ -H fd:// $DOCKER_OPTS
+```
