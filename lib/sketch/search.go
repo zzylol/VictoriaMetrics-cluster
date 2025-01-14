@@ -222,6 +222,8 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 	src = src[4:]
 	sq.FuncNameID = funcNameID
 
+	sq.Args = make([]float64, 0)
+
 	if len(src) < 4 {
 		return src, fmt.Errorf("cannot unmarshal MaxMetrics: too short src len: %d; must be at least %d bytes", len(src), 4)
 	}

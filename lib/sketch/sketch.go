@@ -8,7 +8,6 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/zzylol/VictoriaMetrics-cluster/app/vmselect/searchutils"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/cgroup"
-	"github.com/zzylol/VictoriaMetrics-cluster/lib/logger"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/querytracer"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/storage"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/syncwg"
@@ -239,7 +238,8 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 
 	funcName := GetFuncName(funcNameID)
 
-	logger.Errorf("in SearchAndEval, funcNameID=%d, funcName=%s", funcNameID, funcName)
+	// logger.Errorf("in SearchAndEval, funcNameID=%d, funcName=%s", funcNameID, funcName)
+	// logger.Errorf("metricnames =%s", MetricNameRaws)
 
 	qt = qt.NewChild("rollup %s() over %d series", funcName, len(MetricNameRaws))
 	defer qt.Done()
@@ -265,7 +265,7 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 		srs.sketchInss = append(srs.sketchInss, *sr)
 	}
 
-	logger.Errorf("Started Sketch Eval()...")
+	// logger.Errorf("Started Sketch Eval()...")
 
 	workers := MaxWorkers()
 	if workers > len(MetricNameRaws) {
