@@ -95,8 +95,8 @@ const sep = '\xff' // Used between labels in `Bytes` and `Hash`.
 
 type vmMemSeries struct {
 	id              TSId
-	mn              *storage.MetricName // TODO: change this to be VM MetricName
-	sketchInstances *SketchInstances    // same as PromSketches
+	mn              *storage.MetricNameNoTenant
+	sketchInstances *SketchInstances // same as PromSketches
 	oldestTimestamp int64
 }
 
@@ -105,7 +105,7 @@ type VMSketchSeriesHashMap struct {
 	conflicts map[uint64][]*vmMemSeries
 }
 
-func (m *VMSketchSeriesHashMap) get(hash uint64, mn *storage.MetricName) *vmMemSeries {
+func (m *VMSketchSeriesHashMap) get(hash uint64, mn *storage.MetricNameNoTenant) *vmMemSeries {
 	if s, found := m.unique[hash]; found {
 		if s.mn.Equal(mn) {
 			return s
@@ -194,7 +194,7 @@ func (s *VMSketchSeries) getByID(id TSId) *vmMemSeries {
 	return series
 }
 
-func (s *VMSketchSeries) getByHash(hash uint64, mn *storage.MetricName) *vmMemSeries {
+func (s *VMSketchSeries) getByHash(hash uint64, mn *storage.MetricNameNoTenant) *vmMemSeries {
 	if s.size == 0 {
 		return nil
 	}
@@ -257,9 +257,9 @@ func NewVMSketches() *VMSketches {
 	return vs
 }
 
-func newVMMemSeries(mn *storage.MetricName, id TSId) *vmMemSeries {
+func newVMMemSeries(mn *storage.MetricNameNoTenant, id TSId) *vmMemSeries {
 	s := &vmMemSeries{
-		mn:              &storage.MetricName{},
+		mn:              &storage.MetricNameNoTenant{},
 		id:              id,
 		sketchInstances: nil,
 		oldestTimestamp: -1,
@@ -272,7 +272,7 @@ func newVMSketchInstance(series *vmMemSeries, stype SketchType, sc *SketchConfig
 	return newVMSlidingHistorgrams(series, stype, sc)
 }
 
-func (vs *VMSketches) NewVMSketchCacheInstance(mn *storage.MetricName, funcName string, time_window_size int64, item_window_size int64) error {
+func (vs *VMSketches) NewVMSketchCacheInstance(mn *storage.MetricNameNoTenant, funcName string, time_window_size int64, item_window_size int64) error {
 	mn.SortTags()
 	hash := MetricNameHash(mn)
 	series, _, _ := vs.getOrCreate(hash, mn)
@@ -300,7 +300,7 @@ func (vs *VMSketches) NewVMSketchCacheInstance(mn *storage.MetricName, funcName 
 	return nil
 }
 
-func (vs *VMSketches) LookupAndUpdateWindowMetricNameFuncName(mn *storage.MetricName, funcName string, window int64) bool {
+func (vs *VMSketches) LookupAndUpdateWindowMetricNameFuncName(mn *storage.MetricNameNoTenant, funcName string, window int64) bool {
 	mn.SortTags()
 	hash := MetricNameHash(mn)
 	series := vs.series.getByHash(hash, mn)
@@ -335,7 +335,7 @@ func (vs *VMSketches) LookupAndUpdateWindowMetricNameFuncName(mn *storage.Metric
 	return true
 }
 
-func (vs *VMSketches) getOrCreate(hash uint64, mn *storage.MetricName) (*vmMemSeries, bool, error) {
+func (vs *VMSketches) getOrCreate(hash uint64, mn *storage.MetricNameNoTenant) (*vmMemSeries, bool, error) {
 	s := vs.series.getByHash(hash, mn)
 	if s != nil {
 		return s, false, nil
@@ -365,7 +365,7 @@ func (vs *VMSketches) Stop() {
 
 // Hash returns a hash value for the label set.
 // Note: the result is not guaranteed to be consistent across different runs of Prometheus.
-func MetricNameHash(mn *storage.MetricName) uint64 {
+func MetricNameHash(mn *storage.MetricNameNoTenant) uint64 {
 	// Use xxhash.Sum64(b) for fast path as it's faster.
 	b := make([]byte, 0, 1024)
 	for i, tag := range mn.Tags {
@@ -394,7 +394,7 @@ func (vs *VMSketches) GetSeriesCount() uint64 {
 	return vs.numSeries.Load()
 }
 
-func (vs *VMSketches) AddRow(mn *storage.MetricName, t int64, value float64) error {
+func (vs *VMSketches) AddRow(mn *storage.MetricNameNoTenant, t int64, value float64) error {
 	mn.SortTags()
 	hash := MetricNameHash(mn)
 	s := vs.series.getByHash(hash, mn)
@@ -426,13 +426,13 @@ func (vs *VMSketches) AddRow(mn *storage.MetricName, t int64, value float64) err
 	return nil
 }
 
-func (si *SketchInstances) Eval(mn *storage.MetricName, funcName string, args []float64, mint, maxt, cur_time int64) float64 {
+func (si *SketchInstances) Eval(mn *storage.MetricNameNoTenant, funcName string, args []float64, mint, maxt, cur_time int64) float64 {
 	sfunc := VMFunctionCalls[funcName]
 	logger.Errorf("funcName=%s, sfunc=%s", funcName, sfunc)
 	return sfunc(context.TODO(), si, args, mint, maxt, cur_time)
 }
 
-func (s *SketchInstances) PrintMinMaxTimeRange(mn *storage.MetricName, funcName string) (mint, maxt int64) {
+func (s *SketchInstances) PrintMinMaxTimeRange(mn *storage.MetricNameNoTenant, funcName string) (mint, maxt int64) {
 	stype := funcSketchMap[funcName]
 
 	switch stype[0] {
@@ -447,7 +447,7 @@ func (s *SketchInstances) PrintMinMaxTimeRange(mn *storage.MetricName, funcName 
 	}
 }
 
-func (vs *VMSketches) LookupMetricNameFuncNamesTimeRange(mn *storage.MetricName, funcName string, mint, maxt int64) (*SketchInstances, bool) {
+func (vs *VMSketches) LookupMetricNameFuncNamesTimeRange(mn *storage.MetricNameNoTenant, funcName string, mint, maxt int64) (*SketchInstances, bool) {
 	mn.SortTags()
 	hash := MetricNameHash(mn)
 	series := vs.series.getByHash(hash, mn)
@@ -490,7 +490,7 @@ func (vs *VMSketches) LookupMetricNameFuncNamesTimeRange(mn *storage.MetricName,
 	return series.sketchInstances, true
 }
 
-func (vs *VMSketches) OutputTimeseriesCoverage(mn *storage.MetricName, funcNames []string) {
+func (vs *VMSketches) OutputTimeseriesCoverage(mn *storage.MetricNameNoTenant, funcNames []string) {
 	mn.SortTags()
 	hash := MetricNameHash(mn)
 	series := vs.series.getByHash(hash, mn)
@@ -531,7 +531,7 @@ func (vs *VMSketches) OutputTimeseriesCoverage(mn *storage.MetricName, funcNames
 	}
 }
 
-func (vs *VMSketches) RegisterMetricName(mn *storage.MetricName) error {
+func (vs *VMSketches) RegisterMetricName(mn *storage.MetricNameNoTenant) error {
 	mn.SortTags()
 	_, _, err := vs.getOrCreate(MetricNameHash(mn), mn)
 	if err != nil {
@@ -542,8 +542,8 @@ func (vs *VMSketches) RegisterMetricName(mn *storage.MetricName) error {
 }
 
 func (vs *VMSketches) RegisterMetricNames(mrs []storage.MetricRow) error {
-	mn := storage.GetMetricName()
-	defer storage.PutMetricName(mn)
+	mn := storage.GetMetricNameNoTenant()
+	defer storage.PutMetricNameNoTenant(mn)
 
 	for i := range mrs {
 		if err := mn.UnmarshalRaw(mrs[i].MetricNameRaw); err != nil {
@@ -558,7 +558,7 @@ func (vs *VMSketches) RegisterMetricNames(mrs []storage.MetricRow) error {
 	return nil
 }
 
-func (vs *VMSketches) DeleteSeries(mn *storage.MetricName) (int, error) {
+func (vs *VMSketches) DeleteSeries(mn *storage.MetricNameNoTenant) (int, error) {
 	hash := MetricNameHash(mn)
 
 	series := vs.series.getByHash(hash, mn)

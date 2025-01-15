@@ -583,16 +583,16 @@ func MarshalMetricNameRaw(dst []byte, accountID, projectID uint32, labels []prom
 			// Skip labels without values, since they have no sense in prometheus.
 			continue
 		}
-		dst = marshalStringFast(dst, label.Name)
-		dst = marshalStringFast(dst, label.Value)
+		dst = MarshalStringFast(dst, label.Name)
+		dst = MarshalStringFast(dst, label.Value)
 	}
 	return dst
 }
 
 // MarshalMetricLabelRaw marshals label to dst.
 func MarshalMetricLabelRaw(dst []byte, label *prompbmarshal.Label) []byte {
-	dst = marshalStringFast(dst, label.Name)
-	dst = marshalStringFast(dst, label.Value)
+	dst = MarshalStringFast(dst, label.Name)
+	dst = MarshalStringFast(dst, label.Value)
 	return dst
 }
 
@@ -652,7 +652,7 @@ func (mn *MetricName) UnmarshalRaw(src []byte) error {
 	return nil
 }
 
-func marshalStringFast(dst []byte, s string) []byte {
+func MarshalStringFast(dst []byte, s string) []byte {
 	dst = encoding.MarshalUint16(dst, uint16(len(s)))
 	dst = append(dst, s...)
 	return dst

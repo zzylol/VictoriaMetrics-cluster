@@ -80,8 +80,8 @@ func (s *Sketch) AddRows(mrs []storage.MetricRow) error {
 	WG.Add(1)
 
 	var firstWarn error
-	mn := storage.GetMetricName()
-	defer storage.PutMetricName(mn)
+	mn := storage.GetMetricNameNoTenant()
+	defer storage.PutMetricNameNoTenant(mn)
 
 	for i := range mrs {
 		if err := mn.UnmarshalRaw(mrs[i].MetricNameRaw); err != nil {
@@ -100,8 +100,8 @@ func (s *Sketch) AddRows(mrs []storage.MetricRow) error {
 }
 
 func (s *Sketch) AddRow(metricNameRaw []byte, timestamp int64, value float64) error {
-	mn := storage.GetMetricName()
-	defer storage.PutMetricName(mn)
+	mn := storage.GetMetricNameNoTenant()
+	defer storage.PutMetricNameNoTenant(mn)
 	if err := mn.UnmarshalRaw(metricNameRaw); err != nil {
 		return fmt.Errorf("cannot umarshal MetricNameRaw %q: %w", metricNameRaw, err)
 	}
@@ -117,7 +117,7 @@ func (s *Sketch) GetSketchCacheStatus(qt *querytracer.Tracer, deadline uint64) (
 }
 
 // RegisterMetricNames registers all the metrics from mrs in the storage.
-func (s *Sketch) RegisterSingleMetricNameFuncName(mn *storage.MetricName, funcName string, window int64, item_window int64) error {
+func (s *Sketch) RegisterSingleMetricNameFuncName(mn *storage.MetricNameNoTenant, funcName string, window int64, item_window int64) error {
 	WG.Add(1)
 	var firstWarn error
 
@@ -141,8 +141,8 @@ func (s *Sketch) RegisterMetricNameFuncName(mrs []storage.MetricRow, funcName st
 	WG.Add(1)
 	var firstWarn error
 	for _, mr := range mrs {
-		mn := storage.GetMetricName()
-		defer storage.PutMetricName(mn)
+		mn := storage.GetMetricNameNoTenant()
+		defer storage.PutMetricNameNoTenant(mn)
 		if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
 			// Do not stop adding rows on error - just skip invalid row.
 			// This guarantees that invalid rows don't prevent
@@ -168,7 +168,7 @@ func (s *Sketch) RegisterMetricNameFuncName(mrs []storage.MetricRow, funcName st
 	return firstWarn
 }
 
-func (s *Sketch) RegisterMetricName(qt *querytracer.Tracer, mn *storage.MetricName) error {
+func (s *Sketch) RegisterMetricName(qt *querytracer.Tracer, mn *storage.MetricNameNoTenant) error {
 	return s.sketchCache.RegisterMetricName(mn)
 }
 
@@ -180,7 +180,7 @@ func (s *Sketch) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.Metri
 //
 // Search returns Result slice.
 type SketchResult struct {
-	MetricName *storage.MetricName
+	MetricName *storage.MetricNameNoTenant
 	sketchIns  *SketchInstances
 }
 
@@ -198,8 +198,8 @@ func (s *Sketch) DeleteSeries(qt *querytracer.Tracer, MetricNameRaws [][]byte, d
 	var count int = 0
 	var err error
 	for _, metricNameRaw := range MetricNameRaws {
-		mn := storage.GetMetricName()
-		defer storage.PutMetricName(mn)
+		mn := storage.GetMetricNameNoTenant()
+		defer storage.PutMetricNameNoTenant(mn)
 		if err := mn.UnmarshalRaw(metricNameRaw); err != nil {
 			err = fmt.Errorf("cannot umarshal MetricNameRaw %q: %w", metricNameRaw, err)
 		}
@@ -210,7 +210,7 @@ func (s *Sketch) DeleteSeries(qt *querytracer.Tracer, MetricNameRaws [][]byte, d
 	return total, err
 }
 
-func (s *Sketch) SearchTimeSeriesCoverage(start, end int64, mn *storage.MetricName, funcName string, maxMetrics int) (*SketchResult, bool, error) {
+func (s *Sketch) SearchTimeSeriesCoverage(start, end int64, mn *storage.MetricNameNoTenant, funcName string, maxMetrics int) (*SketchResult, bool, error) {
 	sketchIns, lookup := s.sketchCache.LookupMetricNameFuncNamesTimeRange(mn, funcName, start, end)
 	if sketchIns == nil {
 		if err := s.RegisterSingleMetricNameFuncName(mn, funcName, (end-start)*4, (end-start)/100*4); err != nil {
@@ -225,7 +225,7 @@ func (s *Sketch) SearchTimeSeriesCoverage(start, end int64, mn *storage.MetricNa
 
 	if !lookup {
 		// fmt.Println(sketchIns.PrintMinMaxTimeRange(mn, funcName))
-		return nil, false, fmt.Errorf("sketch cache doesn't cover metricName %q", mn)
+		return nil, false, fmt.Errorf("sketch cache doesn't cover metricName %s, time range: [%d, %d]", mn, start, end)
 	}
 
 	return &SketchResult{sketchIns: sketchIns, MetricName: mn}, true, nil
@@ -239,7 +239,7 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 
 	funcName := GetFuncName(funcNameID)
 
-	// logger.Errorf("in SearchAndEval, funcNameID=%d, funcName=%s", funcNameID, funcName)
+	logger.Errorf("in SearchAndEval, funcNameID=%d, funcName=%s", funcNameID, funcName)
 	// logger.Errorf("metricnames =%s", MetricNameRaws)
 	logger.Infof("sargs=%s", sargs)
 
@@ -254,12 +254,21 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 	srs.sketchInss = make([]SketchResult, 0)
 
 	for _, metricNameRaw := range MetricNameRaws {
-		mn := storage.GetMetricName()
-		defer storage.PutMetricName(mn)
-		if err := mn.UnmarshalRaw(metricNameRaw); err != nil {
+		mn := storage.GetMetricNameNoTenant()
+		defer storage.PutMetricNameNoTenant(mn)
+		err := mn.UnmarshalRaw(metricNameRaw)
+		logger.Infof("metricnameraw=%s", metricNameRaw)
+		if err != nil {
+			logger.Infof("metricname=%s with error", mn)
+			fmt.Println("Error:", err)
 			err = fmt.Errorf("cannot umarshal MetricNameRaw %q: %w", metricNameRaw, err)
+		} else {
+			logger.Infof("metricname=%s", mn)
+			fmt.Println("Error:", err)
 		}
+
 		mn.SortTags()
+
 		sr, isCovered, err := s.SearchTimeSeriesCoverage(start, end, mn, funcName, maxMetrics)
 		if err != nil || isCovered == false {
 			return nil, isCovered, err
@@ -267,7 +276,7 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 		srs.sketchInss = append(srs.sketchInss, *sr)
 	}
 
-	// logger.Errorf("Started Sketch Eval()...")
+	logger.Errorf("Started Sketch Eval()...")
 
 	workers := MaxWorkers()
 	if workers > len(MetricNameRaws) {
@@ -292,6 +301,7 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 			for i := startIdx; i < endIdx; i++ {
 				sr := &srs.sketchInss[i]
 				value := sr.Eval(sr.MetricName, funcName, sargs, start, end, end)
+				logger.Infof("sr.Eval=%s", value)
 				local_tss[i] = append(local_tss[i], &Timeseries{*sr.MetricName, []float64{value}, []int64{end}, true})
 			}
 		}(i)
@@ -335,7 +345,7 @@ func MaxWorkers() int {
 	return n
 }
 
-func (sr *SketchResult) Eval(mn *storage.MetricName, funcName string, args []float64, mint, maxt, cur_time int64) float64 {
+func (sr *SketchResult) Eval(mn *storage.MetricNameNoTenant, funcName string, args []float64, mint, maxt, cur_time int64) float64 {
 	return sr.sketchIns.Eval(mn, funcName, args, mint, maxt, cur_time)
 }
 

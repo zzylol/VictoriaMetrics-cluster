@@ -1707,11 +1707,17 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	return rvs, nil
 }
 
-func copy_ts_results(tss []*sketch.Timeseries) (ts_results []*timeseries) {
+func copy_ts_results(tss []*sketch.Timeseries, AccountID, ProjectID uint32) (ts_results []*timeseries) {
 	ts_results = make([]*timeseries, len(tss))
 	for i, ts := range tss {
+		mn := storage.MetricName{
+			AccountID:   AccountID,
+			ProjectID:   ProjectID,
+			MetricGroup: ts.MetricName.MetricGroup,
+			Tags:        ts.MetricName.Tags,
+		}
 		ts_results[i] = &timeseries{
-			MetricName: ts.MetricName,
+			MetricName: mn,
 			Values:     ts.Values,
 			Timestamps: ts.Timestamps,
 			denyReuse:  ts.DenyReuse,
@@ -1723,7 +1729,8 @@ func copy_ts_results(tss []*sketch.Timeseries) (ts_results []*timeseries) {
 func MetricNamesToBytes(mns []string) [][]byte {
 	mnrs := make([][]byte, len(mns))
 	for i, mn := range mns {
-		mnrs[i] = []byte(mn)
+		logger.Infof("mnstring=%s", mn)
+		storage.MarshalStringFast(mnrs[i], mn)
 	}
 	return mnrs
 }
@@ -1799,7 +1806,8 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		sketch_sq := sketch.NewSearchQuery(minTimestamp, ec.End, mnrs, funcNameID, sargs, ec.MaxSeries)
 		ts_results, isCovered, err := netstorage.SearchAndEvalSketchCache(qt, ec.DenyPartialResponse, sketch_sq, ec.Deadline)
 		if err == nil && isCovered {
-			output_ts_results := copy_ts_results(ts_results)
+			output_ts_results := copy_ts_results(ts_results, ec.AuthTokens[0].AccountID, ec.AuthTokens[0].ProjectID)
+			// Currently only support no multi-tenant mode
 			return output_ts_results, err
 		}
 	}
