@@ -848,7 +848,7 @@ func SearchAndEvalSketchCache(qt *querytracer.Tracer, denyPartialResponse bool, 
 		})
 	})
 
-	// Collect results
+	// Collect results; TODO
 	tss := make([]*sketch.Timeseries, 0)
 	var isCovered_all bool = true
 	err := snr.collectAllResults(func(result any) error {
@@ -865,6 +865,7 @@ func SearchAndEvalSketchCache(qt *querytracer.Tracer, denyPartialResponse bool, 
 	if err != nil {
 		return nil, false, fmt.Errorf("cannot evaluate query on all the vmsketch nodes: %w", err)
 	}
+	logger.Infof("tss num=%d", len(tss))
 	return tss, isCovered_all, err
 }
 

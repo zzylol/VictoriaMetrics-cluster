@@ -8,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/zzylol/VictoriaMetrics-cluster/app/vmselect/searchutils"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/cgroup"
+	"github.com/zzylol/VictoriaMetrics-cluster/lib/logger"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/querytracer"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/storage"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/syncwg"
@@ -299,6 +300,8 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 	for i := 0; i < workers; i++ {
 		tss = append(tss, local_tss[i]...)
 	}
+
+	logger.Infof("in lib/sketch, tss num=%d", len(tss))
 	return tss, true, nil
 }
 
