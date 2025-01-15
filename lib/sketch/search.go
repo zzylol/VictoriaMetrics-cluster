@@ -2,6 +2,7 @@ package sketch
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/encoding"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/slicesutil"
@@ -174,10 +175,10 @@ func (sq *SearchQuery) Marshal(dst []byte) []byte {
 
 	dst = encoding.MarshalUint32(dst, sq.FuncNameID)
 
-	// dst = encoding.MarshalVarUint64(dst, uint64(len(sq.Args)))
-	// for _, arg := range sq.Args {
-	// 	dst = encoding.MarshalFloat64(dst, arg)
-	// }
+	dst = encoding.MarshalUint32(dst, uint32(len(sq.Args)))
+	for _, arg := range sq.Args {
+		dst = encoding.MarshalBytes(dst, []byte(strconv.FormatFloat(arg, 'f', -1, 64)))
+	}
 
 	dst = encoding.MarshalUint32(dst, uint32(sq.MaxMetrics))
 	return dst
@@ -214,15 +215,33 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 		src = src[nSize:]
 	}
 
-	funcNameID := encoding.UnmarshalUint32(src)
-	if nSize <= 0 {
+	if len(src) < 4 {
 		return src, fmt.Errorf("cannot unmarshal FuncNameID from uint32")
 	}
-
-	src = src[4:]
+	funcNameID := encoding.UnmarshalUint32(src)
 	sq.FuncNameID = funcNameID
+	src = src[4:]
 
-	sq.Args = make([]float64, 0)
+	if len(src) < 4 {
+		return src, fmt.Errorf("cannot unmarshal argsCount from uint32")
+	}
+	argsCount := encoding.UnmarshalUint32(src)
+	src = src[4:]
+	sq.Args = make([]float64, argsCount)
+	var strArg []byte
+	for i := 0; i < int(argsCount); i++ {
+		strArg, nSize = encoding.UnmarshalBytes(src)
+		if floatArg, err := strconv.ParseFloat(string(strArg), 64); err != nil {
+			sq.Args[i] = floatArg
+		} else {
+			return src, fmt.Errorf("cannot unmarshal Args[%d] from string", i)
+		}
+
+		if nSize <= 0 {
+			return src, fmt.Errorf("cannot unmarshal Args[%d] from bytes", i)
+		}
+		src = src[nSize:]
+	}
 
 	if len(src) < 4 {
 		return src, fmt.Errorf("cannot unmarshal MaxMetrics: too short src len: %d; must be at least %d bytes", len(src), 4)
