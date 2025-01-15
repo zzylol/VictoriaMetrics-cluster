@@ -224,7 +224,7 @@ func (s *Sketch) SearchTimeSeriesCoverage(start, end int64, mn *storage.MetricNa
 	}
 
 	if !lookup {
-		// fmt.Println(sketchIns.PrintMinMaxTimeRange(mn, funcName))
+		fmt.Println(sketchIns.PrintMinMaxTimeRange(mn, funcName))
 		return nil, false, fmt.Errorf("sketch cache doesn't cover metricName %s, time range: [%d, %d]", mn, start, end)
 	}
 
@@ -256,15 +256,12 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 	for _, metricNameRaw := range MetricNameRaws {
 		mn := storage.GetMetricNameNoTenant()
 		defer storage.PutMetricNameNoTenant(mn)
-		err := mn.UnmarshalRaw(metricNameRaw)
+		// metricNameRaw is packedtimeseries
+		mn.Reset()
 		logger.Infof("metricnameraw=%s", metricNameRaw)
-		if err != nil {
-			logger.Infof("metricname=%s with error", mn)
-			fmt.Println("Error:", err)
-			err = fmt.Errorf("cannot umarshal MetricNameRaw %q: %w", metricNameRaw, err)
-		} else {
-			logger.Infof("metricname=%s", mn)
-			fmt.Println("Error:", err)
+		if err := mn.Unmarshal(metricNameRaw); err != nil {
+			fmt.Println(err)
+			err = fmt.Errorf("cannot unmarshal metricName %q: %w", metricNameRaw, err)
 		}
 
 		mn.SortTags()

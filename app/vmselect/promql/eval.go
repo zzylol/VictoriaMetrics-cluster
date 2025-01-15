@@ -1726,13 +1726,15 @@ func copy_ts_results(tss []*sketch.Timeseries, AccountID, ProjectID uint32) (ts_
 	return ts_results
 }
 
-func MetricNamesToBytes(mns []string) [][]byte {
+func MetricNamesToBytes(mns []string) ([][]byte, error) {
 	mnrs := make([][]byte, len(mns))
 	for i, mn := range mns {
-		logger.Infof("mnstring=%s", mn)
-		storage.MarshalStringFast(mnrs[i], mn)
+		if len(mn) < 8 {
+			return nil, fmt.Errorf("too short mn: %d bytes; must be at least 8 bytes", len(mn))
+		}
+		mnrs[i] = bytesutil.ToUnsafeBytes(mn[8:])
 	}
-	return mnrs
+	return mnrs, nil
 }
 
 // evalRollupFuncNoCache calculates the given rf with the given lookbehind window.
@@ -1794,13 +1796,15 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	}
 	ec.QueryStats.addSeriesFetched(rssLen)
 
+	// mns := rss.GetUnpackedMetricNames()
+	// logger.Infof("mns=%s", mns)
 	mns := rss.GetMetricNames()
-	mnrs := MetricNamesToBytes(mns)
+	mnrs, err := MetricNamesToBytes(mns)
 
 	// fmt.Println("VM ProcessSearchQuery Time:", since.Seconds(), "s")
 	funcNameID := sketch.GetFuncNameID(funcName)
 	// if it's not supported function in VMSketch; just skip sketch look up
-	if funcNameID >= 1 && funcNameID <= 13 {
+	if err != nil || funcNameID >= 1 && funcNameID <= 13 {
 		sargs := getRollupArgForSketches(args, 0) // TODO
 		// logger.Infof("sargs=%s", sargs)
 		sketch_sq := sketch.NewSearchQuery(minTimestamp, ec.End, mnrs, funcNameID, sargs, ec.MaxSeries)

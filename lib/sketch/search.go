@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/encoding"
+	"github.com/zzylol/VictoriaMetrics-cluster/lib/logger"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/slicesutil"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/stringsutil"
 )
@@ -232,13 +233,13 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 	var strArg []byte
 	for i := 0; i < int(argsCount); i++ {
 		strArg, nSize = encoding.UnmarshalBytes(src)
-		sq.Args[i], _ = strconv.ParseFloat(string(strArg), 64)
-		// if floatArg, err := strconv.ParseFloat(string(strArg), 64); err != nil {
-		// 	sq.Args[i] = floatArg
-		// } else {
-		// 	logger.Errorf("strArg=%s, err=%s, byte_size=%d", string(strArg), err, len(strArg))
-		// 	return src, fmt.Errorf("cannot unmarshal Args[%d] from string", i)
-		// }
+		// sq.Args[i], _ = strconv.ParseFloat(string(strArg), 64)
+		if floatArg, err := strconv.ParseFloat(string(strArg), 64); err == nil {
+			sq.Args[i] = floatArg
+		} else {
+			logger.Errorf("strArg=%s, err=%s, byte_size=%d", string(strArg), err, len(strArg))
+			return src, fmt.Errorf("cannot unmarshal Args[%d] from string", i)
+		}
 
 		if nSize <= 0 {
 			return src, fmt.Errorf("cannot unmarshal Args[%d] from bytes", i)
