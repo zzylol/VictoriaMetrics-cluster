@@ -224,7 +224,8 @@ func (s *Sketch) SearchTimeSeriesCoverage(start, end int64, mn *storage.MetricNa
 	}
 
 	if !lookup {
-		fmt.Println(sketchIns.PrintMinMaxTimeRange(mn, funcName))
+		mint, maxt := sketchIns.PrintMinMaxTimeRange(mn, funcName)
+		fmt.Printf("sketchIns time range: [%d, %d]\n", mint, maxt)
 		return nil, false, fmt.Errorf("sketch cache doesn't cover metricName %s, time range: [%d, %d]", mn, start, end)
 	}
 
