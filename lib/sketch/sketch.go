@@ -8,7 +8,6 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/zzylol/VictoriaMetrics-cluster/app/vmselect/searchutils"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/cgroup"
-	"github.com/zzylol/VictoriaMetrics-cluster/lib/logger"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/querytracer"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/storage"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/syncwg"
@@ -78,8 +77,6 @@ var WG syncwg.WaitGroup
 // The caller should limit the number of concurrent calls to AddRows() in order to limit memory usage.
 func (s *Sketch) AddRows(mrs []storage.MetricRow) error {
 	WG.Add(1)
-
-	logger.Infof(" in Sketch AddRows, mrs=%s", mrs)
 
 	var firstWarn error
 	mn := storage.GetMetricName()
