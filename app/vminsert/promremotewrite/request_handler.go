@@ -98,5 +98,7 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 	rowsTenantInsertedToSketch.MultiAdd(perTenantRows)
 	rowsPerInsertToSketch.Update(float64(rowsTotal))
 
-	return ctx.FlushBufs()
+	err := ctx.FlushBufs()
+	err = ctx_sketch.FlushBufs()
+	return err
 }

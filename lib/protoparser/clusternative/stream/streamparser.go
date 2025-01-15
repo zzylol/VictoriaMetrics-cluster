@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/bytesutil"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/consts"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/encoding"
@@ -14,7 +15,6 @@ import (
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/protoparser/common"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/storage"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/writeconcurrencylimiter"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 // Parse parses data sent from vminsert to bc and calls callback for parsed rows.
@@ -29,13 +29,17 @@ func Parse(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) e
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r := io.Reader(wcr)
 
+	logger.Errorf("in stream.Parse")
+
 	var wg sync.WaitGroup
 	var (
 		callbackErrLock sync.Mutex
 		callbackErr     error
 	)
 	for {
+		logger.Infof("before read reqBuf")
 		reqBuf, err := readBlock(nil, r, bc, isReadOnly)
+		logger.Infof("after read reqBuf")
 		if err != nil {
 			wg.Wait()
 			if err == io.EOF {
@@ -48,6 +52,7 @@ func Parse(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) e
 		uw := getUnmarshalWork()
 		uw.reqBuf = reqBuf
 		uw.callback = func(rows []storage.MetricRow) {
+			logger.Infof("in Parse: get rows=%s", rows) // ???
 			if err := callback(rows); err != nil {
 				processErrors.Inc()
 				callbackErrLock.Lock()
@@ -148,6 +153,7 @@ func (uw *unmarshalWork) reset() {
 
 // Unmarshal implements common.UnmarshalWork
 func (uw *unmarshalWork) Unmarshal() {
+	logger.Infof("in common.UnmarshalWork")
 	reqBuf := uw.reqBuf
 	for len(reqBuf) > 0 {
 		// Limit the number of rows passed to callback in order to reduce memory usage

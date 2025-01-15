@@ -144,6 +144,23 @@ func (ctx *InsertCtxSketch) WriteDataPointExtSketch(sketchNodeIdx int, metricNam
 	return nil
 }
 
+// FlushBufs flushes ctx bufs to remote storage nodes.
+func (ctx *InsertCtxSketch) FlushBufs() error {
+	var firstErr error
+	snb := ctx.sknb
+	sns := snb.sns
+	for i := range ctx.bufRowss {
+		br := &ctx.bufRowss[i]
+		if len(br.buf) == 0 {
+			continue
+		}
+		if err := br.pushToSketch(snb, sns[i]); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
+}
+
 func (br *bufRows) pushToSketch(snb *sketchNodesBucket, sn *sketchNode) error {
 	bufLen := len(br.buf)
 	err := sn.push(snb, br.buf, br.rows)

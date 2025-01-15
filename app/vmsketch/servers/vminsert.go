@@ -122,11 +122,13 @@ func (s *VMInsertServer) run() {
 			}()
 
 			logger.Infof("processing vminsert conn from %s", c.RemoteAddr())
+
 			err = stream.Parse(bc, func(rows []storage.MetricRow) error {
 				vminsertMetricsRead.Add(len(rows))
 				s.sketch.AddRows(rows)
 				return nil
 			}, s.sketch.IsReadOnly)
+			logger.Infof("after stream.Parse")
 			if err != nil {
 				if s.isStopping() {
 					return
