@@ -241,6 +241,7 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 
 	// logger.Errorf("in SearchAndEval, funcNameID=%d, funcName=%s", funcNameID, funcName)
 	// logger.Errorf("metricnames =%s", MetricNameRaws)
+	logger.Infof("sargs=%s", sargs)
 
 	qt = qt.NewChild("rollup %s() over %d series", funcName, len(MetricNameRaws))
 	defer qt.Done()

@@ -1772,12 +1772,12 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		sq = storage.NewSearchQuery(ec.AuthTokens[0].AccountID, ec.AuthTokens[0].ProjectID, minTimestamp, ec.End, tfss, ec.MaxSeries)
 	}
 
-	start := time.Now()
+	// start := time.Now()
 	rss, isPartial, err := netstorage.ProcessSearchQuery(qt, ec.DenyPartialResponse, sq, ec.Deadline)
 	if err != nil {
 		return nil, err
 	}
-	since := time.Since(start)
+	// since := time.Since(start)
 
 	ec.updateIsPartialResponse(isPartial)
 	rssLen := rss.Len()
@@ -1790,11 +1790,12 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	mns := rss.GetMetricNames()
 	mnrs := MetricNamesToBytes(mns)
 
-	fmt.Println("VM ProcessSearchQuery Time:", since.Seconds(), "s")
+	// fmt.Println("VM ProcessSearchQuery Time:", since.Seconds(), "s")
 	funcNameID := sketch.GetFuncNameID(funcName)
 	// if it's not supported function in VMSketch; just skip sketch look up
 	if funcNameID >= 1 && funcNameID <= 13 {
 		sargs := getRollupArgForSketches(args, 0) // TODO
+		// logger.Infof("sargs=%s", sargs)
 		sketch_sq := sketch.NewSearchQuery(minTimestamp, ec.End, mnrs, funcNameID, sargs, ec.MaxSeries)
 		ts_results, isCovered, err := netstorage.SearchAndEvalSketchCache(qt, ec.DenyPartialResponse, sketch_sq, ec.Deadline)
 		if err == nil && isCovered {

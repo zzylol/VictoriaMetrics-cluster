@@ -178,6 +178,7 @@ func (sq *SearchQuery) Marshal(dst []byte) []byte {
 	dst = encoding.MarshalUint32(dst, uint32(len(sq.Args)))
 	for _, arg := range sq.Args {
 		dst = encoding.MarshalBytes(dst, []byte(strconv.FormatFloat(arg, 'f', -1, 64)))
+		// logger.Infof("in SearchQuery Marhshal: %s, len=%d", []byte(strconv.FormatFloat(arg, 'f', -1, 64)), len([]byte(strconv.FormatFloat(arg, 'f', -1, 64))))
 	}
 
 	dst = encoding.MarshalUint32(dst, uint32(sq.MaxMetrics))
@@ -231,11 +232,13 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 	var strArg []byte
 	for i := 0; i < int(argsCount); i++ {
 		strArg, nSize = encoding.UnmarshalBytes(src)
-		if floatArg, err := strconv.ParseFloat(string(strArg), 64); err != nil {
-			sq.Args[i] = floatArg
-		} else {
-			return src, fmt.Errorf("cannot unmarshal Args[%d] from string", i)
-		}
+		sq.Args[i], _ = strconv.ParseFloat(string(strArg), 64)
+		// if floatArg, err := strconv.ParseFloat(string(strArg), 64); err != nil {
+		// 	sq.Args[i] = floatArg
+		// } else {
+		// 	logger.Errorf("strArg=%s, err=%s, byte_size=%d", string(strArg), err, len(strArg))
+		// 	return src, fmt.Errorf("cannot unmarshal Args[%d] from string", i)
+		// }
 
 		if nSize <= 0 {
 			return src, fmt.Errorf("cannot unmarshal Args[%d] from bytes", i)
