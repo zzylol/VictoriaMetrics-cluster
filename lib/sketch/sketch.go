@@ -240,9 +240,9 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 
 	funcName := GetFuncName(funcNameID)
 
-	logger.Errorf("in SearchAndEval, funcNameID=%d, funcName=%s", funcNameID, funcName)
+	// logger.Errorf("in SearchAndEval, funcNameID=%d, funcName=%s", funcNameID, funcName)
 	// logger.Errorf("metricnames =%s", MetricNameRaws)
-	logger.Infof("sargs=%s", sargs)
+	// logger.Infof("sargs=%s", sargs)
 
 	qt = qt.NewChild("rollup %s() over %d series", funcName, len(MetricNameRaws))
 	defer qt.Done()
@@ -259,9 +259,9 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 		defer storage.PutMetricNameNoTenant(mn)
 		// metricNameRaw is packedtimeseries
 		mn.Reset()
-		logger.Infof("metricnameraw=%s", metricNameRaw)
+		// logger.Infof("metricnameraw=%s", metricNameRaw)
 		if err := mn.Unmarshal(metricNameRaw); err != nil {
-			fmt.Println(err)
+			// fmt.Println(err)
 			err = fmt.Errorf("cannot unmarshal metricName %q: %w", metricNameRaw, err)
 		}
 
@@ -274,7 +274,7 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 		srs.sketchInss = append(srs.sketchInss, *sr)
 	}
 
-	logger.Errorf("Started Sketch Eval()...")
+	// logger.Errorf("Started Sketch Eval()...")
 
 	workers := MaxWorkers()
 	if workers > len(MetricNameRaws) {
@@ -299,7 +299,9 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 			for i := startIdx; i < endIdx; i++ {
 				sr := &srs.sketchInss[i]
 				value := sr.Eval(sr.MetricName, funcName, sargs, start, end, end)
-				logger.Infof("sr.Eval=%s", value)
+				if funcNameID == 13 {
+					logger.Infof("sr.Eval=%s", value)
+				}
 				local_tss[i] = append(local_tss[i], &Timeseries{*sr.MetricName, []float64{value}, []int64{end}, true})
 			}
 		}(i)
@@ -310,7 +312,8 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 		tss = append(tss, local_tss[i]...)
 	}
 
-	logger.Infof("in lib/sketch, tss num=%d", len(tss))
+	seriesReadPerQuery.Update(float64(len(tss)))
+
 	return tss, true, nil
 }
 

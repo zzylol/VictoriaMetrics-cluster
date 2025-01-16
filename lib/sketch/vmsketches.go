@@ -406,6 +406,7 @@ func (vs *VMSketches) AddRow(mn *storage.MetricNameNoTenant, t int64, value floa
 		if s.oldestTimestamp == -1 {
 			s.oldestTimestamp = t
 		}
+		// logger.Infof("sketch addRow:%s, %d, %f", mn, t, value)
 		s.sketchInstances.ehkll.Update(t, value)
 	}
 
@@ -413,6 +414,7 @@ func (vs *VMSketches) AddRow(mn *storage.MetricNameNoTenant, t int64, value floa
 		if s.oldestTimestamp == -1 {
 			s.oldestTimestamp = t
 		}
+		// logger.Infof("sketch addRow:%s, %d, %f", mn, t, value)
 		s.sketchInstances.sampling.Insert(t, value)
 	}
 
@@ -475,13 +477,19 @@ func (vs *VMSketches) LookupMetricNameFuncNamesTimeRange(mn *storage.MetricNameN
 			if series.sketchInstances.ehkll == nil {
 				return nil, false
 			} else if series.sketchInstances.ehkll.Cover(startt, maxt) == false {
+				// logger.Infof("find EHKLL series, with time range: [%d, %d]", series.sketchInstances.ehkll.GetMinTime(), series.sketchInstances.ehkll.GetMaxTime())
 				return series.sketchInstances, false
+			} else {
+				// logger.Infof("find EHKLL series, with time range: [%d, %d]", series.sketchInstances.ehkll.GetMinTime(), series.sketchInstances.ehkll.GetMaxTime())
 			}
 		case USampling:
 			if series.sketchInstances.sampling == nil {
 				return nil, false
 			} else if series.sketchInstances.sampling.Cover(startt, maxt) == false {
+				// logger.Infof("find Sampling series, with time range: [%d, %d]", series.sketchInstances.sampling.GetMinTime(), series.sketchInstances.sampling.GetMaxTime())
 				return series.sketchInstances, false
+			} else {
+				// logger.Infof("find Sampling series, with time range: [%d, %d]", series.sketchInstances.sampling.GetMinTime(), series.sketchInstances.sampling.GetMaxTime())
 			}
 		default:
 			return nil, false
