@@ -782,12 +782,18 @@ func (s *Server) processSearchAndEval(ctx *vmselectRequestCtx) error {
 	}
 	defer s.endConcurrentRequest()
 
-	// Evaluate and send the result to vmselect.
+	// Evaluate the request.
 	tss, isCovered, err := s.api.SearchAndEval(ctx.qt, &ctx.sq, ctx.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot execute searchAndEval: %w", err)
 	}
 
+	// Send an empty error message to vmselect.
+	if err := ctx.writeString(""); err != nil {
+		return fmt.Errorf("cannot send empty error message: %w", err)
+	}
+
+	// Send isCovered and tss to vmselect.
 	isCovered_64 := uint64(0)
 	if isCovered {
 		isCovered_64 = 1
@@ -796,13 +802,7 @@ func (s *Server) processSearchAndEval(ctx *vmselectRequestCtx) error {
 		return fmt.Errorf("cannot write isCovered to vmselect: %w", err)
 	}
 
-	// TODO: write tss to vmselect
-
-	// Send an empty error message to vmselect.
-	if err := ctx.writeString(""); err != nil {
-		return fmt.Errorf("cannot send empty error message: %w", err)
-	}
-
+	// Write tss to vmselect.
 	ctx.dataBuf = sketch.MarshalTimeseriesFast(ctx.dataBuf[:0], tss, 10e9, 10) // TODO: use real values
 	if err := ctx.writeDataBufBytes(); err != nil {
 		return fmt.Errorf("cannot send sketch eval timeseries results: %w", err)

@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 
 	"github.com/cespare/xxhash"
-	"github.com/zzylol/VictoriaMetrics-cluster/lib/logger"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/storage"
 )
 
@@ -430,7 +429,7 @@ func (vs *VMSketches) AddRow(mn *storage.MetricNameNoTenant, t int64, value floa
 
 func (si *SketchInstances) Eval(mn *storage.MetricNameNoTenant, funcName string, args []float64, mint, maxt, cur_time int64) float64 {
 	sfunc := VMFunctionCalls[funcName]
-	logger.Errorf("funcName=%s, sfunc=%s", funcName, sfunc)
+	// logger.Infof("funcName=%s, sfunc=%s", funcName, sfunc)
 	return sfunc(context.TODO(), si, args, mint, maxt, cur_time)
 }
 

@@ -568,7 +568,7 @@ func (sn *sketchNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcNa
 		// There is no sense in repeating the query on the following errors:
 		//
 		//   - exceeded complexity limits (limitExceededErr)
-		//   - induced by vmstorage (errRemote)
+		//   - induced by vmsketch (errRemote)
 		//   - network timeout errors
 		//   - request deadline exceeded errors
 		return err
@@ -640,9 +640,9 @@ func (sn *sketchNode) execOnConn(qt *querytracer.Tracer, funcName string, f func
 			_ = bc.Close()
 		}
 		if deadline.Exceeded() || errors.Is(err, os.ErrDeadlineExceeded) {
-			return fmt.Errorf("cannot execute funcName=%q on vmstorage %q with timeout %s: %w", funcName, remoteAddr, deadline.String(), err)
+			return fmt.Errorf("cannot execute funcName=%q on vmsketch %q with timeout %s: %w", funcName, remoteAddr, deadline.String(), err)
 		}
-		return fmt.Errorf("cannot execute funcName=%q on vmstorage %q: %w", funcName, remoteAddr, err)
+		return fmt.Errorf("cannot execute funcName=%q on vmsketch %q: %w", funcName, remoteAddr, err)
 	}
 
 	// Read trace from the response
@@ -923,10 +923,10 @@ func (snr *sketchNodesRequest) collectResults(partialResultsCounter *metrics.Cou
 			snr.finishQueryTracer(result.qt, fmt.Sprintf("error: %s", err))
 			var er *errRemote
 			if errors.As(err, &er) {
-				// Immediately return the error reported by vmstorage to the caller,
-				// since such errors usually mean misconfiguration at vmstorage.
+				// Immediately return the error reported by vmsketch to the caller,
+				// since such errors usually mean misconfiguration at vmsketch.
 				// The misconfiguration must be known by the caller, so it is fixed ASAP.
-				snr.finishQueryTracers("cancel request because of error in other vmstorage nodes")
+				snr.finishQueryTracers("cancel request because of error in other vmsketch nodes")
 				return false, err
 			}
 			var limitErr *limitExceededErr
@@ -948,7 +948,7 @@ func (snr *sketchNodesRequest) collectResults(partialResultsCounter *metrics.Cou
 				// Return the error to the caller if partial responses are denied
 				// and the number of partial responses for the given group reach its replicationFactor,
 				// since this means that the response is partial.
-				snr.finishQueryTracers(fmt.Sprintf("cancel request because partial responses are denied and replicationFactor=%d vmstorage nodes at group %q failed to return response",
+				snr.finishQueryTracers(fmt.Sprintf("cancel request because partial responses are denied and replicationFactor=%d vmsketch nodes at group %q failed to return response",
 					group.replicationFactor, group.name))
 
 				// Returns 503 status code for partial response, so the caller could retry it if needed.
@@ -972,7 +972,7 @@ func (snr *sketchNodesRequest) collectResults(partialResultsCounter *metrics.Cou
 			if groupsWithFullResult > groupsCount-*globalReplicationFactor {
 				// There is no need in waiting for the remaining results,
 				// because the collected results contain all the data according to the given per-group replicationFactor.
-				// This should speed up responses when a part of vmstorage nodes are slow and/or temporarily unavailable.
+				// This should speed up responses when a part of vmsketch nodes are slow and/or temporarily unavailable.
 				// See https://github.com/zzylol/VictoriaMetrics-cluster/issues/711
 				snr.finishQueryTracers("cancel request because -search.skipSlowReplicas is set and every group returned the needed number of responses according to replicationFactor")
 				return false, nil
@@ -1004,11 +1004,11 @@ func (snr *sketchNodesRequest) collectResults(partialResultsCounter *metrics.Cou
 			}
 		}
 		if len(errsPartial) > 0 {
-			partialErrorsLogger.Warnf("%d out of %d vmstorage nodes at group %q were unavailable during the query; a sample error: %s", len(errsPartial), len(sns), g.name, errsPartial[0])
+			partialErrorsLogger.Warnf("%d out of %d vmsketch nodes at group %q were unavailable during the query; a sample error: %s", len(errsPartial), len(sns), g.name, errsPartial[0])
 		}
 	}
 	if missingGroups >= *globalReplicationFactor {
-		// Too many groups contain all the non-working vmstorage nodes.
+		// Too many groups contain all the non-working vmsketch nodes.
 		// Returns 503 status code, so the caller could retry it if needed.
 		err := &httpserver.ErrorWithStatusCode{
 			Err:        firstErr,
@@ -1019,7 +1019,7 @@ func (snr *sketchNodesRequest) collectResults(partialResultsCounter *metrics.Cou
 
 	// Return partial results.
 	// This allows continuing returning responses in the case
-	// if a part of vmstorage nodes are temporarily unavailable.
+	// if a part of vmsketch nodes are temporarily unavailable.
 	partialResultsCounter.Inc()
 	// Do not return the error, since it may spam logs on busy vmselect
 	// serving high amounts of requests.
@@ -1090,7 +1090,7 @@ func RegisterMetricNameFuncNameSketch(qt *querytracer.Tracer, mrs []storage.Metr
 	defer qt.Done()
 	sns := getSketchNodes()
 
-	// Split mrs among available vmstorage nodes.
+	// Split mrs among available vmsketch nodes.
 	mrsPerNode := make([][]storage.MetricRow, len(sns))
 	for _, mr := range mrs {
 		idx := 0
@@ -1119,7 +1119,7 @@ func RegisterMetricNameFuncNameSketch(qt *querytracer.Tracer, mrs []storage.Metr
 		return *errP
 	})
 	if err != nil {
-		return fmt.Errorf("cannot register series on all the vmstorage nodes: %w", err)
+		return fmt.Errorf("cannot register series on all the vmsketch nodes: %w", err)
 	}
 	return nil
 }
@@ -1129,7 +1129,7 @@ func RegisterMetricNamesSketch(qt *querytracer.Tracer, mrs []storage.MetricRow, 
 	qt = qt.NewChild("register metric names")
 	defer qt.Done()
 	sns := getSketchNodes()
-	// Split mrs among available vmstorage nodes.
+	// Split mrs among available vmsketch nodes.
 	mrsPerNode := make([][]storage.MetricRow, len(sns))
 	for _, mr := range mrs {
 		idx := 0
@@ -1158,7 +1158,7 @@ func RegisterMetricNamesSketch(qt *querytracer.Tracer, mrs []storage.MetricRow, 
 		return *errP
 	})
 	if err != nil {
-		return fmt.Errorf("cannot register series on all the vmstorage nodes: %w", err)
+		return fmt.Errorf("cannot register series on all the vmsketch nodes: %w", err)
 	}
 	return nil
 }
@@ -1185,7 +1185,7 @@ func SketchCacheStatus(qt *querytracer.Tracer, denyPartialResponse bool, sq *ske
 			status, err := sn.getSketchCacheStatus(qt, requestData, focusLabel, topN, deadline)
 			if err != nil {
 				sn.sketchCacheStatusErrors.Inc()
-				err = fmt.Errorf("cannot obtain tsdb status from vmstorage %s: %w", sn.connPool.Addr(), err)
+				err = fmt.Errorf("cannot obtain tsdb status from vmsketch %s: %w", sn.connPool.Addr(), err)
 			}
 			return &nodeResult{
 				status: status,
@@ -1207,7 +1207,7 @@ func SketchCacheStatus(qt *querytracer.Tracer, denyPartialResponse bool, sq *ske
 		return nil
 	})
 	if err != nil {
-		return nil, isPartial, fmt.Errorf("cannot fetch tsdb status from vmstorage nodes: %w", err)
+		return nil, isPartial, fmt.Errorf("cannot fetch tsdb status from vmsketch nodes: %w", err)
 	}
 
 	status := mergeSketchCachestatuses(statuses)
@@ -1243,7 +1243,7 @@ func SeriesCountSketch(qt *querytracer.Tracer, accountID, projectID uint32, deny
 		n, err := sn.getSeriesCount(qt, accountID, projectID, deadline)
 		if err != nil {
 			sn.seriesCountErrors.Inc()
-			err = fmt.Errorf("cannot get series count from vmstorage %s: %w", sn.connPool.Addr(), err)
+			err = fmt.Errorf("cannot get series count from vmsketch %s: %w", sn.connPool.Addr(), err)
 		}
 		return &nodeResult{
 			n:   n,

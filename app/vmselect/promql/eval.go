@@ -1805,7 +1805,8 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	funcNameID := sketch.GetFuncNameID(funcName)
 	// if it's not supported function in VMSketch; just skip sketch look up
 
-	if err == nil && funcNameID >= 1 && funcNameID <= 13 {
+	// if err == nil && funcNameID >= 1 && funcNameID <= 13 {
+	if err == nil && funcNameID == 13 {
 		sargs := getRollupArgForSketches(args, 0) // TODO
 		// logger.Infof("sargs=%s", sargs)
 		sketch_sq := sketch.NewSearchQuery(minTimestamp, ec.End, mnrs, funcNameID, sargs, ec.MaxSeries)

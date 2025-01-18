@@ -240,9 +240,9 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 
 	funcName := GetFuncName(funcNameID)
 
-	// logger.Errorf("in SearchAndEval, funcNameID=%d, funcName=%s", funcNameID, funcName)
-	// logger.Errorf("metricnames =%s", MetricNameRaws)
-	// logger.Infof("sargs=%s", sargs)
+	logger.Errorf("in SearchAndEval, funcNameID=%d, funcName=%s", funcNameID, funcName)
+	logger.Errorf("metricnames =%s", MetricNameRaws)
+	logger.Infof("sargs=%s", sargs)
 
 	qt = qt.NewChild("rollup %s() over %d series", funcName, len(MetricNameRaws))
 	defer qt.Done()
@@ -300,7 +300,7 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 				sr := &srs.sketchInss[i]
 				value := sr.Eval(sr.MetricName, funcName, sargs, start, end, end)
 				if funcNameID == 13 {
-					logger.Infof("sr.Eval=%s", value)
+					logger.Infof("quantile_over_time sr.Eval=%s", value)
 				}
 				local_tss[i] = append(local_tss[i], &Timeseries{*sr.MetricName, []float64{value}, []int64{end}, true})
 			}
