@@ -795,6 +795,9 @@ func (sn *sketchNode) searchAndEvalOnConn(bc *handshake.BufferedConn, requestDat
 	// Read response.
 	var tss []*sketch.Timeseries // for a single vmsketch node response
 	var isCovered bool
+	isCovered_64, err := readUint64(bc)
+	isCovered = bool(isCovered_64 != 0)
+	logger.Infof("read isCovered=%d", isCovered)
 	for {
 		buf, err = readBytes(buf[:0], bc, maxEvalResultSize)
 		if err != nil {
@@ -802,10 +805,11 @@ func (sn *sketchNode) searchAndEvalOnConn(bc *handshake.BufferedConn, requestDat
 		}
 		if len(buf) == 0 {
 			// Reached the end of the response
-			// logger.Errorf("received eval tss=%s", tss)
 			return tss, isCovered, nil
 		}
 		unmarshaled_tss, err := sketch.UnmarshalTimeseriesFast(buf)
+
+		logger.Infof("received eval 1 tss=%s", unmarshaled_tss)
 
 		if err != nil {
 			return nil, false, fmt.Errorf("cannot unmarshal timeseries: %w", err)

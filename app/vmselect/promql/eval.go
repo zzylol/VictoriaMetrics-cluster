@@ -1804,15 +1804,21 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	// fmt.Println("VM ProcessSearchQuery Time:", since.Seconds(), "s")
 	funcNameID := sketch.GetFuncNameID(funcName)
 	// if it's not supported function in VMSketch; just skip sketch look up
-	if err != nil || funcNameID >= 1 && funcNameID <= 13 {
+
+	if err == nil && funcNameID >= 1 && funcNameID <= 13 {
 		sargs := getRollupArgForSketches(args, 0) // TODO
 		// logger.Infof("sargs=%s", sargs)
 		sketch_sq := sketch.NewSearchQuery(minTimestamp, ec.End, mnrs, funcNameID, sargs, ec.MaxSeries)
 		ts_results, isCovered, err := netstorage.SearchAndEvalSketchCache(qt, ec.DenyPartialResponse, sketch_sq, ec.Deadline)
+
 		if err == nil && isCovered {
+
+			logger.Infof("!!! Returned Eval timeseries: %s", ts_results)
 			output_ts_results := copy_ts_results(ts_results, ec.AuthTokens[0].AccountID, ec.AuthTokens[0].ProjectID)
 			// Currently only support no multi-tenant mode
 			return output_ts_results, err
+		} else {
+			logger.Infof("err=%s, isCovered=%d", err, isCovered)
 		}
 	}
 
