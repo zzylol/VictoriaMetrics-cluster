@@ -1808,7 +1808,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	if err == nil && funcNameID >= 1 && funcNameID <= 13 {
 		sargs := getRollupArgForSketches(args, 0) // TODO
 		// logger.Infof("sargs=%s", sargs)
-		logger.Infof("funcName=%s mns=%s", funcName, mns)
+		// logger.Infof("funcName=%s mns=%s", funcName, mns)
 		sketch_sq := sketch.NewSearchQuery(minTimestamp, ec.End, mnrs, funcNameID, sargs, ec.MaxSeries)
 		ts_results, isCovered, err := netstorage.SearchAndEvalSketchCache(qt, ec.DenyPartialResponse, sketch_sq, ec.Deadline)
 

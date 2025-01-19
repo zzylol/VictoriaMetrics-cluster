@@ -120,8 +120,8 @@ func (s *Sketch) GetSketchCacheStatus(qt *querytracer.Tracer, deadline uint64) (
 func (s *Sketch) RegisterSingleMetricNameFuncName(mn *storage.MetricNameNoTenant, funcName string, window int64, item_window int64) error {
 	WG.Add(1)
 	var firstWarn error
-
 	mn.SortTags()
+
 	err := s.sketchCache.NewVMSketchCacheInstance(mn, funcName, window, item_window)
 	if err != nil {
 		// Do not stop adding rows on error - just skip invalid row.
@@ -227,6 +227,9 @@ func (s *Sketch) SearchTimeSeriesCoverage(start, end int64, mn *storage.MetricNa
 	if !lookup {
 		mint, maxt := sketchIns.PrintMinMaxTimeRange(mn, funcName)
 		fmt.Printf("sketchIns time range: [%d, %d]\n", mint, maxt)
+		if sketchIns.ehkll != nil {
+			logger.Infof("ehkll.s_count=%d mn=%s", sketchIns.ehkll.s_count, mn)
+		}
 		// return nil, false, fmt.Errorf("sketch cache doesn't cover metricName %s, time range: [%d, %d]", mn, start, end)
 		return &SketchResult{sketchIns: sketchIns, MetricName: mn}, false, nil
 	}
@@ -243,7 +246,7 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 	funcName := GetFuncName(funcNameID)
 
 	logger.Infof("in SearchAndEval, funcNameID=%d, funcName=%s", funcNameID, funcName)
-	logger.Infof("metricnames =%s", MetricNameRaws)
+	// logger.Infof("metricnames =%s", MetricNameRaws)
 	logger.Infof("sargs=%s", sargs)
 
 	qt = qt.NewChild("rollup %s() over %d series", funcName, len(MetricNameRaws))
@@ -283,6 +286,8 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 		workers = len(MetricNameRaws)
 	}
 
+	logger.Infof("workers=%d", workers)
+
 	seriesPerWorker := (len(MetricNameRaws) + workers - 1) / workers
 	tss := make([]*Timeseries, 0)
 	local_tss := make([][]*Timeseries, workers)
@@ -292,19 +297,20 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 	for i := 0; i < workers; i++ {
 		go func(workerID int) {
 			defer wg.Done()
-			local_tss[i] = make([]*Timeseries, 0)
+			local_tss[workerID] = make([]*Timeseries, 0)
 			startIdx := workerID * seriesPerWorker
 			endIdx := startIdx + seriesPerWorker
 			if endIdx > len(MetricNameRaws) {
 				endIdx = len(MetricNameRaws)
 			}
-			for i := startIdx; i < endIdx; i++ {
-				sr := &srs.sketchInss[i]
+			logger.Infof("startIdx=%d, endIdx=%d, sketchIss len=%d", startIdx, endIdx, len(srs.sketchInss))
+			for idx := startIdx; idx < endIdx; idx++ { // timeseries idx
+				sr := &srs.sketchInss[idx]
 				value := sr.Eval(sr.MetricName, funcName, sargs, start, end, end)
 				if funcNameID == 13 {
 					logger.Infof("quantile_over_time sr.Eval=%s", value)
 				}
-				local_tss[i] = append(local_tss[i], &Timeseries{*sr.MetricName, []float64{value}, []int64{end}, true})
+				local_tss[workerID] = append(local_tss[workerID], &Timeseries{*sr.MetricName, []float64{value}, []int64{end}, true})
 			}
 		}(i)
 	}
@@ -314,6 +320,7 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 		tss = append(tss, local_tss[i]...)
 	}
 
+	logger.Infof("in SearchAndEval len(tss)=%d", len(tss))
 	seriesReadPerQuery.Update(float64(len(tss)))
 
 	return tss, true, nil
