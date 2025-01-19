@@ -852,7 +852,7 @@ func SearchAndEvalSketchCache(qt *querytracer.Tracer, denyPartialResponse bool, 
 		})
 	})
 
-	// Collect results; TODO
+	// Collect results.
 	tss := make([]*sketch.Timeseries, 0)
 	var isCovered_all bool = true
 	err := snr.collectAllResults(func(result any) error {
