@@ -220,13 +220,15 @@ func (s *Sketch) SearchTimeSeriesCoverage(start, end int64, mn *storage.MetricNa
 	}
 
 	if sketchIns == nil {
-		return nil, false, fmt.Errorf("sketchIns doesn't allocated")
+		// return nil, false, fmt.Errorf("sketchIns doesn't allocated")
+		return nil, false, nil
 	}
 
 	if !lookup {
 		mint, maxt := sketchIns.PrintMinMaxTimeRange(mn, funcName)
 		fmt.Printf("sketchIns time range: [%d, %d]\n", mint, maxt)
-		return nil, false, fmt.Errorf("sketch cache doesn't cover metricName %s, time range: [%d, %d]", mn, start, end)
+		// return nil, false, fmt.Errorf("sketch cache doesn't cover metricName %s, time range: [%d, %d]", mn, start, end)
+		return &SketchResult{sketchIns: sketchIns, MetricName: mn}, false, nil
 	}
 
 	return &SketchResult{sketchIns: sketchIns, MetricName: mn}, true, nil
@@ -240,8 +242,8 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 
 	funcName := GetFuncName(funcNameID)
 
-	logger.Errorf("in SearchAndEval, funcNameID=%d, funcName=%s", funcNameID, funcName)
-	logger.Errorf("metricnames =%s", MetricNameRaws)
+	logger.Infof("in SearchAndEval, funcNameID=%d, funcName=%s", funcNameID, funcName)
+	logger.Infof("metricnames =%s", MetricNameRaws)
 	logger.Infof("sargs=%s", sargs)
 
 	qt = qt.NewChild("rollup %s() over %d series", funcName, len(MetricNameRaws))
