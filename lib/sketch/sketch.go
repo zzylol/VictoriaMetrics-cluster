@@ -314,9 +314,6 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 			for idx := startIdx; idx < endIdx; idx++ { // timeseries idx
 				sr := &srs.sketchInss[idx]
 				value := sr.Eval(sr.MetricName, funcName, sargs, start, end, end)
-				// if funcNameID == 13 {
-				// 	logger.Infof("quantile_over_time sr.Eval=%s", value)
-				// }
 				local_tss[workerID] = append(local_tss[workerID], &Timeseries{*sr.MetricName, []float64{value}, []int64{end}, true})
 			}
 		}(i)
@@ -328,6 +325,10 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 	}
 
 	logger.Infof("in SearchAndEval len(tss)=%d", len(tss))
+	// if funcNameID == 13 {
+	// 	logger.Infof("quantile_over_time sr.Eval=%s", tss)
+	// }
+
 	seriesReadPerQuery.Update(float64(len(tss)))
 
 	return tss, true, nil

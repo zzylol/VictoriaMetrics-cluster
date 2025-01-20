@@ -1813,12 +1813,13 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		ts_results, isCovered, err := netstorage.SearchAndEvalSketchCache(qt, ec.DenyPartialResponse, sketch_sq, ec.Deadline)
 
 		if funcNameID == 13 {
-			logger.Infof("!!! Returned Eval timeseries: %s, isCovered=%d, err:%s", ts_results, isCovered, err)
+			logger.Infof("!!! Returned Eval timeseries: tss_len=%d, isCovered=%d, err:%s", len(ts_results), isCovered, err)
 		}
 
 		if err == nil && isCovered {
 			output_ts_results := copy_ts_results(ts_results, ec.AuthTokens[0].AccountID, ec.AuthTokens[0].ProjectID)
 			// Currently only support no multi-tenant mode
+			logger.Infof("I returned with vmsketch eval!")
 			return output_ts_results, err
 		} else {
 			logger.Infof("err=%s, isCovered=%d", err, isCovered)
