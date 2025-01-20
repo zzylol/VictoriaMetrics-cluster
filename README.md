@@ -202,7 +202,7 @@ sudo systemctl restart docker
 ```
 ./bin/vmstorage --storageDataPath=./
 ./bin/vmsketch 
-./bin/vmselect --storageNode=127.0.0.1:8401 --sketchNode=127.0.0.1:8501 --vmalert.proxyURL=http://127.0.0.1:8880
+./bin/vmselect --storageNode=127.0.0.1:8401 --sketchNode=127.0.0.1:8501 --vmalert.proxyURL=http://127.0.0.1:8880 -search.maxQueryDuration=3600000s
 ./bin/vminsert --storageNode=127.0.0.1:8400 --sketchNode=127.0.0.1:8500
 
 ./bin/vmagent --promscrape.config=/mydata/VictoriaMetrics-cluster/deployment/docker/prometheus-cluster-baremetal.yml --remoteWrite.url=http://127.0.0.1:8480/insert/0/prometheus/
