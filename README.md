@@ -150,9 +150,27 @@ sudo make docker-cluster down
 
 
 # Run Docker Compose and Docker Swarm for distributed cluster version
+## Create a Swarm
+Manager node:
+```
+sudo docker swarm init --advertise-addr 10.10.1.1
+```
+
+Worker nodes:
+```
+sudo  docker swarm join --token some_token 10.10.1.1:2377
+```
+
+Check status in manager node:
+```
+sudo docker info
+sudo docker node ls
+```
+
+## Run Docker stack
 Docker-compose version: >= 2.0 (install latest)
 
-Start stack
+Start stack in manager node
 ```
 sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster.yml stackdemo
 ```
@@ -198,7 +216,7 @@ sudo systemctl daemon-reload
 sudo systemctl restart docker
 ```
 
-# Start each component individually without docker (start them in order)
+# Start each component individually in a baremetal machine (start them in order)
 ```
 ./bin/vmstorage --storageDataPath=./
 ./bin/vmsketch 
