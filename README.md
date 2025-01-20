@@ -172,12 +172,18 @@ Docker-compose version: >= 2.0 (install latest)
 
 Start stack in manager node
 ```
-sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster.yml stackdemo
+sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm.yml stackdemo
 ```
 
 Show status
 ```
 sudo docker stack services stackdemo
+```
+
+Add label meatadata to the datasource node
+```
+sudo docker node update --label-add role=datasource "hostname of node"
+sudo docker node inspect self --pretty
 ```
 
 Stop stack
