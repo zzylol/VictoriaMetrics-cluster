@@ -44,6 +44,10 @@ services:
   vmstorage-1:
     container_name: vmstorage-1
     image: victoriametrics/vmstorage:v1.108.1-cluster 
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == datasource
     ports:
       - 8482
       - 8400
@@ -56,6 +60,10 @@ services:
   vmstorage-2:
     container_name: vmstorage-2
     image: victoriametrics/vmstorage:v1.108.1-cluster 
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker
     ports:
       - 8482
       - 8400
@@ -71,6 +79,10 @@ services:
   vmsketch-1:
     container_name: vmsketch-1
     image: victoriametrics/vmsketch:heads-master-0-g76bb3d9
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == datasource
     ports:
       - 8582
       - 8500
@@ -79,6 +91,10 @@ services:
   vmsketch-2:
     container_name: vmsketch-2
     image: victoriametrics/vmsketch:heads-master-0-g76bb3d9
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker
     ports:
       - 8582
       - 8500
@@ -90,6 +106,10 @@ services:
   vminsert:
     container_name: vminsert
     image: victoriametrics/vminsert:heads-master-0-g1fad55c-dirty-10802a78
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == datasource
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -109,6 +129,10 @@ services:
   vmselect-1:
     container_name: vmselect-1
     image: victoriametrics/vmselect:heads-master-0-g76bb3d9
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == datasource
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -126,6 +150,10 @@ services:
   vmselect-2:
     container_name: vmselect-2
     image: victoriametrics/vmselect:heads-master-0-g76bb3d9
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
