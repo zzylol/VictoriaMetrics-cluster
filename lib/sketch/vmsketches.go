@@ -470,6 +470,9 @@ func (vs *VMSketches) LookupMetricNameFuncNamesTimeRange(mn *storage.MetricNameN
 			if series.sketchInstances.ehuniv == nil {
 				return nil, false
 			} else if series.sketchInstances.ehuniv.Cover(startt, maxt) == false {
+				if series.sketchInstances.ehuniv.time_window_size < maxt-mint {
+					series.sketchInstances.ehuniv.UpdateWindow(maxt - mint)
+				}
 				return series.sketchInstances, false
 			}
 		case EHKLL:
@@ -477,6 +480,9 @@ func (vs *VMSketches) LookupMetricNameFuncNamesTimeRange(mn *storage.MetricNameN
 				return nil, false
 			} else if series.sketchInstances.ehkll.Cover(startt, maxt) == false {
 				// logger.Infof("find EHKLL series, with time range: [%d, %d]", series.sketchInstances.ehkll.GetMinTime(), series.sketchInstances.ehkll.GetMaxTime())
+				if series.sketchInstances.ehkll.time_window_size < maxt-mint {
+					series.sketchInstances.ehkll.UpdateWindow(maxt - mint)
+				}
 				return series.sketchInstances, false
 			} else {
 				// logger.Infof("find EHKLL series, with time range: [%d, %d]", series.sketchInstances.ehkll.GetMinTime(), series.sketchInstances.ehkll.GetMaxTime())
@@ -486,6 +492,9 @@ func (vs *VMSketches) LookupMetricNameFuncNamesTimeRange(mn *storage.MetricNameN
 				return nil, false
 			} else if series.sketchInstances.sampling.Cover(startt, maxt) == false {
 				// logger.Infof("find Sampling series, with time range: [%d, %d]", series.sketchInstances.sampling.GetMinTime(), series.sketchInstances.sampling.GetMaxTime())
+				if series.sketchInstances.sampling.Time_window_size < maxt-mint {
+					series.sketchInstances.sampling.UpdateWindow(maxt - mint)
+				}
 				return series.sketchInstances, false
 			} else {
 				// logger.Infof("find Sampling series, with time range: [%d, %d]", series.sketchInstances.sampling.GetMinTime(), series.sketchInstances.sampling.GetMaxTime())

@@ -258,6 +258,8 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 
 	srs := &SketchResults{}
 	srs.sketchInss = make([]SketchResult, 0)
+	var isCovered_final bool = true
+	var first_err error = nil
 
 	for _, metricNameRaw := range MetricNameRaws {
 		mn := storage.GetMetricNameNoTenant()
@@ -273,10 +275,15 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 		mn.SortTags()
 
 		sr, isCovered, err := s.SearchTimeSeriesCoverage(start, end, mn, funcName, maxMetrics)
-		if err != nil || isCovered == false {
-			return nil, isCovered, err
+		isCovered_final = isCovered_final && isCovered
+		if err != nil || first_err == nil {
+			first_err = err
 		}
 		srs.sketchInss = append(srs.sketchInss, *sr)
+	}
+
+	if first_err != nil || isCovered_final == false {
+		return nil, isCovered_final, first_err
 	}
 
 	// logger.Errorf("Started Sketch Eval()...")
