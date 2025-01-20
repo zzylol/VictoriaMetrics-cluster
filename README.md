@@ -170,6 +170,12 @@ sudo docker node ls
 ## Run Docker stack
 Docker-compose version: >= 2.0 (install latest)
 
+Add label meatadata to the datasource node
+```
+sudo docker node update --label-add role=datasource "hostname of node"
+sudo docker node inspect self --pretty
+```
+
 Start stack in manager node
 ```
 sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm.yml stackdemo
@@ -180,10 +186,9 @@ Show status
 sudo docker stack services stackdemo
 ```
 
-Add label meatadata to the datasource node
+Debug not started cluster service
 ```
-sudo docker node update --label-add role=datasource "hostname of node"
-sudo docker node inspect self --pretty
+sudo docker service ps --no-trunc {serviceName}
 ```
 
 Stop stack
@@ -246,7 +251,3 @@ sudo docker push zeyingz/vminsert:[tag]
 sudo docker pull zeyingz/vminsert:[tag]
 ```
 
-# Debug not started cluster service
-```
-sudo docker service ps --no-trunc {serviceName}
-```
