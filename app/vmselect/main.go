@@ -66,6 +66,7 @@ var (
 
 	clusternativeListenAddr = flag.String("clusternativeListenAddr", "", "TCP address to listen for requests from other vmselect nodes in multi-level cluster setup. "+
 		"See https://docs.victoriametrics.com/cluster-victoriametrics/#multi-level-cluster-setup . Usually :8401 should be set to match default vmstorage port for vmselect. Disabled work if empty")
+	sketchEnabled = flagutil.NewArrayBool("sketchEnabled", "whether enabling sketch caching; usage: -sketchEnabled")
 )
 
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
