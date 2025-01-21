@@ -179,6 +179,7 @@ sudo docker node inspect self --pretty
 Start stack in manager node
 ```
 sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm.yml stackdemo
+sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-original.yml stackdemo
 ```
 
 Show status
