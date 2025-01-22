@@ -121,7 +121,15 @@ func main() {
 	}
 
 	netstorage.Init(*storageNodes)
-	netstorage.InitSketch(*sketchNodes)
+
+	hashSeed := uint64(0)
+	if *clusternativeListenAddr != "" {
+		// Use different hash seed for the second level of vmselect nodes in multi-level cluster setup.
+		// This should fix uneven distribution of time series among storage nodes.
+		// See https://github.com/zzylol/VictoriaMetrics-cluster/issues/1672
+		hashSeed = 0xabcdef0123456789
+	}
+	netstorage.InitSketch(*sketchNodes, hashSeed)
 
 	logger.Infof("started netstorage in %.3f seconds", time.Since(startTime).Seconds())
 

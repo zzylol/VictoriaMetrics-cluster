@@ -13,6 +13,8 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
 	"github.com/zzylol/VictoriaMetrics-cluster/app/vmselect/searchutils"
+	"github.com/zzylol/VictoriaMetrics-cluster/lib/auth"
+	"github.com/zzylol/VictoriaMetrics-cluster/lib/encoding"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/fasttime"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/handshake"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/httpserver"
@@ -26,6 +28,8 @@ import (
 type sketchNodesBucket struct {
 	ms  *metrics.Set
 	sns []*sketchNode
+
+	nodesHash *consistentHash
 }
 
 var sketchNodes atomic.Pointer[sketchNodesBucket]
@@ -36,6 +40,34 @@ func getSketchNodesBucket() *sketchNodesBucket {
 
 func setSketchNodesBucket(snb *sketchNodesBucket) {
 	sketchNodes.Store(snb)
+}
+
+func marshalStringFast(dst []byte, s string) []byte {
+	dst = encoding.MarshalUint16(dst, uint16(len(s)))
+	dst = append(dst, s...)
+	return dst
+}
+
+func getSketchNodeIdx(snb *sketchNodesBucket, at *auth.Token, mnr []byte) int {
+	if len(snb.sns) == 1 {
+		// Fast path - only a single storage node.
+		return 0
+	}
+
+	var buf []byte
+	buf = encoding.MarshalUint32(buf, at.AccountID)
+	buf = encoding.MarshalUint32(buf, at.ProjectID)
+	// for i := range labels {
+	// 	label := &labels[i]
+	// 	buf = marshalStringFast(buf, label.Name)
+	// 	buf = marshalStringFast(buf, label.Value)
+	// }
+	buf = append(buf, mnr...)
+	h := xxhash.Sum64(buf)
+
+	// Do not exclude unavailable storage nodes in order to properly account for rerouted rows in storageNode.push().
+	idx := snb.nodesHash.getNodeIdx(h, nil)
+	return idx
 }
 
 func getSketchNodes() []*sketchNode {
@@ -75,7 +107,7 @@ func newSketchNode(ms *metrics.Set, group *sketchNodesGroup, addr string) *sketc
 	return sn
 }
 
-func initSketchNodes(addrs []string) *sketchNodesBucket {
+func initSketchNodes(addrs []string, hashSeed uint64) *sketchNodesBucket {
 	if len(addrs) == 0 {
 		logger.Panicf("BUG: addrs must be non-empty")
 	}
@@ -85,6 +117,7 @@ func initSketchNodes(addrs []string) *sketchNodesBucket {
 	var snsLock sync.Mutex
 	sns := make([]*sketchNode, 0, len(addrs))
 	var wg sync.WaitGroup
+	nodesHash := newConsistentHash(addrs, hashSeed)
 	ms := metrics.NewSet()
 	// initialize connections to sketch nodes in parallel in order speed up the initialization
 	// for big number of sketch nodes.
@@ -106,8 +139,9 @@ func initSketchNodes(addrs []string) *sketchNodesBucket {
 	wg.Wait()
 	metrics.RegisterSet(ms)
 	return &sketchNodesBucket{
-		sns: sns,
-		ms:  ms,
+		sns:       sns,
+		ms:        ms,
+		nodesHash: nodesHash,
 	}
 }
 
@@ -139,8 +173,8 @@ type sketchNodesGroup struct {
 // Init initializes storage nodes' connections to the given addrs.
 //
 // MustStop must be called when the initialized connections are no longer needed.
-func InitSketch(sketch_addrs []string) {
-	sknb := initSketchNodes(sketch_addrs)
+func InitSketch(sketch_addrs []string, hashSeed uint64) {
+	sknb := initSketchNodes(sketch_addrs, hashSeed)
 	setSketchNodesBucket(sknb)
 }
 
@@ -755,6 +789,55 @@ func startSketchNodesRequest(qt *querytracer.Tracer, sns []*sketchNode, denyPart
 	}
 }
 
+func startSketchNodesRequestSearch(qt *querytracer.Tracer, sns []*sketchNode, sqs *sketch.SearchQuery, denyPartialResponse bool,
+	f func(qt *querytracer.Tracer, workerID uint, sn *sketchNode, sq *sketch.SearchQuery) any,
+) *sketchNodesRequest {
+	resultsCh := make(chan rpcResultSketch, len(sns))
+	qts := make(map[*querytracer.Tracer]struct{}, len(sns))
+	snb := getSketchNodesBucket()
+	atLocal := &auth.Token{
+		AccountID: 0,
+		ProjectID: 0,
+	}
+	sq_partition := make([]*sketch.SearchQuery, 0)
+	for _ = range sns {
+		sq_tmp := &sketch.SearchQuery{
+			MinTimestamp:   sqs.MinTimestamp,
+			MaxTimestamp:   sqs.MaxTimestamp,
+			FuncNameID:     sqs.FuncNameID,
+			Args:           sqs.Args,
+			MaxMetrics:     sqs.MaxMetrics,
+			MetricNameRaws: make([][]byte, 0),
+		}
+		sq_partition = append(sq_partition, sq_tmp)
+	}
+
+	for _, mnr := range sqs.MetricNameRaws {
+		idx := getSketchNodeIdx(snb, atLocal, mnr)
+		sq_partition[idx].MetricNameRaws = append(sq_partition[idx].MetricNameRaws, mnr)
+	}
+
+	for idx, sn := range sns {
+		qtChild := qt.NewChild("rpc at vmsketch %s", sn.connPool.Addr())
+		qts[qtChild] = struct{}{}
+
+		go func(workerID uint, sn *sketchNode) {
+			data := f(qtChild, workerID, sn, sq_partition[idx])
+			resultsCh <- rpcResultSketch{
+				data:  data,
+				qt:    qtChild,
+				group: sn.group,
+			}
+		}(uint(idx), sn)
+	}
+	return &sketchNodesRequest{
+		denyPartialResponse: denyPartialResponse,
+		resultsCh:           resultsCh,
+		qts:                 qts,
+		sns:                 sns,
+	}
+}
+
 func (sn *sketchNode) searchAndEval(qt *querytracer.Tracer, requestData []byte, deadline searchutils.Deadline) ([]*sketch.Timeseries, bool, error) {
 	var tss []*sketch.Timeseries
 	var isCovered bool
@@ -836,14 +919,16 @@ func SearchAndEvalSketchCache(qt *querytracer.Tracer, denyPartialResponse bool, 
 	}
 
 	sns := getSketchNodes()
-	snr := startSketchNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *sketchNode) any {
-		return execSearchQuerySketch(qt, sqs, func(qt *querytracer.Tracer, requestData []byte) any {
+	logger.Infof("sketch Nodes: %s", sns)
+	snr := startSketchNodesRequestSearch(qt, sns, sqs, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *sketchNode, sq *sketch.SearchQuery) any {
+		return execSearchQuerySketch(qt, sq, func(qt *querytracer.Tracer, requestData []byte) any {
 			sn.searchAndEvalRequests.Inc()
 			ts_results, isCovered, err := sn.searchAndEval(qt, requestData, deadline)
 			if err != nil {
 				sn.searchAndEvalErrors.Inc()
 				err = fmt.Errorf("cannot evaluate query from vmsketch %s: %w", sn.connPool.Addr(), err)
 			}
+			logger.Infof("in execSearchQuerySketch, sn=%s, isCovered=%s, err=%s", sn, isCovered, err)
 			return &sketchEvalResult{
 				isCovered: isCovered,
 				tss:       ts_results,
@@ -877,6 +962,8 @@ func SearchAndEvalSketchCache(qt *querytracer.Tracer, denyPartialResponse bool, 
 func execSearchQuerySketch(qt *querytracer.Tracer, sq *sketch.SearchQuery, cb func(qt *querytracer.Tracer, requestData []byte) any) []any {
 	var requestData []byte
 	var results []any
+
+	// Only parsing metric names belong to this sn into sq
 
 	requestData = sq.Marshal(requestData)
 	qtL := qt

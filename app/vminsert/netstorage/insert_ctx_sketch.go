@@ -65,8 +65,13 @@ func (ctx *InsertCtxSketch) GetSketchNodeIdx(at *auth.Token, labels []prompbmars
 	buf := ctx.labelsBuf[:0]
 	buf = encoding.MarshalUint32(buf, at.AccountID)
 	buf = encoding.MarshalUint32(buf, at.ProjectID)
+	// refer to storage.MarshalMetricNameRaw()
 	for i := range labels {
 		label := &labels[i]
+		if len(label.Value) == 0 {
+			// Skip labels without values, since they have no sense in prometheus.
+			continue
+		}
 		buf = marshalStringFast(buf, label.Name)
 		buf = marshalStringFast(buf, label.Value)
 	}

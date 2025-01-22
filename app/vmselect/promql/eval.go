@@ -1786,13 +1786,13 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 			sq = storage.NewSearchQuery(ec.AuthTokens[0].AccountID, ec.AuthTokens[0].ProjectID, ec.End, ec.End, tfss, ec.MaxSeries)
 		}
 
-		start := time.Now()
+		// start := time.Now()
 		rss, _, err := netstorage.ProcessSearchQuery(qt, ec.DenyPartialResponse, sq, ec.Deadline)
 		if err != nil {
 			return nil, err
 		}
-		since := time.Since(start)
-		logger.Infof("ProcessSearchQuery for vmsketch time:%d (s)", since.Seconds())
+		// since := time.Since(start)
+		// logger.Infof("ProcessSearchQuery for vmsketch time:%d (s)", since.Seconds())
 
 		rssLen := rss.Len()
 		if rssLen == 0 {
