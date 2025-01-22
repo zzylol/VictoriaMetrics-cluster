@@ -190,6 +190,7 @@ sudo docker stack services stackdemo
 Debug not started cluster service
 ```
 sudo docker service ps --no-trunc {serviceName}
+sudo docker service logs {serviceName} # output the logs 
 ```
 
 Stop stack

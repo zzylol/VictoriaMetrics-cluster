@@ -1781,9 +1781,9 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 				ts[i].ProjectID = at.ProjectID
 				ts[i].AccountID = at.AccountID
 			}
-			sq = storage.NewMultiTenantSearchQuery(ts, minTimestamp, minTimestamp, tfss, ec.MaxSeries)
+			sq = storage.NewMultiTenantSearchQuery(ts, ec.End, ec.End, tfss, ec.MaxSeries)
 		} else {
-			sq = storage.NewSearchQuery(ec.AuthTokens[0].AccountID, ec.AuthTokens[0].ProjectID, minTimestamp, minTimestamp, tfss, ec.MaxSeries)
+			sq = storage.NewSearchQuery(ec.AuthTokens[0].AccountID, ec.AuthTokens[0].ProjectID, ec.End, ec.End, tfss, ec.MaxSeries)
 		}
 
 		// start := time.Now()
