@@ -809,7 +809,7 @@ func (sn *sketchNode) searchAndEvalOnConn(bc *handshake.BufferedConn, requestDat
 		}
 		unmarshaled_tss, err := sketch.UnmarshalTimeseriesFast(buf)
 
-		logger.Infof("received eval 1 tss=%s", unmarshaled_tss)
+		// logger.Infof("received eval 1 tss=%s", unmarshaled_tss)
 
 		if err != nil {
 			return nil, false, fmt.Errorf("cannot unmarshal timeseries: %w", err)
