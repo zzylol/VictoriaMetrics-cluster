@@ -187,6 +187,16 @@ func (ehkll *ExpoHistogramKLL) Update(time int64, value float64) {
 	ehkll.mutex.Unlock()
 }
 
+func (ehkll *ExpoHistogramKLL) IsEmpty() bool {
+	ehkll.mutex.RLock()
+	if ehkll.s_count == 0 {
+		ehkll.mutex.RUnlock()
+		return true
+	}
+	ehkll.mutex.RUnlock()
+	return false
+}
+
 func (ehkll *ExpoHistogramKLL) Cover(mint, maxt int64) bool {
 	// fmt.Println("ehkll s_count =", ehkll.s_count)
 

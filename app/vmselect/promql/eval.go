@@ -1769,6 +1769,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		minTimestamp -= ec.Step
 	}
 	var sq *storage.SearchQuery
+	var sq_sketch *storage.SearchQuery
 
 	if ec.IsMultiTenant {
 		ts := make([]storage.TenantToken, len(ec.AuthTokens))
@@ -1779,6 +1780,51 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		sq = storage.NewMultiTenantSearchQuery(ts, minTimestamp, ec.End, tfss, ec.MaxSeries)
 	} else {
 		sq = storage.NewSearchQuery(ec.AuthTokens[0].AccountID, ec.AuthTokens[0].ProjectID, minTimestamp, ec.End, tfss, ec.MaxSeries)
+	}
+
+	if ec.IsMultiTenant {
+		ts := make([]storage.TenantToken, len(ec.AuthTokens))
+		for i, at := range ec.AuthTokens {
+			ts[i].ProjectID = at.ProjectID
+			ts[i].AccountID = at.AccountID
+		}
+		sq_sketch = storage.NewMultiTenantSearchQuery(ts, ec.End, ec.End, tfss, ec.MaxSeries)
+	} else {
+		sq_sketch = storage.NewSearchQuery(ec.AuthTokens[0].AccountID, ec.AuthTokens[0].ProjectID, ec.End, ec.End, tfss, ec.MaxSeries)
+	}
+
+	// start := time.Now()
+	rss_sketch, _, err_sketch := netstorage.ProcessSearchQuery(qt, ec.DenyPartialResponse, sq_sketch, ec.Deadline)
+	if err_sketch == nil {
+		// since := time.Since(start)
+
+		mns := rss_sketch.GetMetricNames()
+		mnrs, err := MetricNamesToBytes(mns)
+
+		// fmt.Println("VM ProcessSearchQuery Time:", since.Seconds(), "s")
+		funcNameID := sketch.GetFuncNameID(funcName)
+		// if it's not supported function in VMSketch; just skip sketch look up
+
+		if err == nil && funcNameID >= 1 && funcNameID <= 13 && funcName != "count_over_time" {
+			sargs := getRollupArgForSketches(args, 0) // TODO
+			// logger.Infof("sargs=%s", sargs)
+			// logger.Infof("funcName=%s mns=%s", funcName, mns)
+			sketch_sq := sketch.NewSearchQuery(minTimestamp, ec.End, mnrs, funcNameID, sargs, ec.MaxSeries)
+			ts_results, isCovered, err := netstorage.SearchAndEvalSketchCache(qt, ec.DenyPartialResponse, sketch_sq, ec.Deadline)
+
+			if funcNameID == 13 {
+				logger.Infof("!!! Returned Eval timeseries: tss_len=%d, isCovered=%d, err:%s", len(ts_results), isCovered, err)
+			}
+
+			if err == nil && isCovered && len(ts_results) == len(mns) {
+				output_ts_results := copy_ts_results(ts_results, ec.AuthTokens[0].AccountID, ec.AuthTokens[0].ProjectID)
+				// Currently only support no multi-tenant mode
+				logger.Infof("I returned with vmsketch eval!")
+				return output_ts_results, err
+			} else {
+				logger.Infof("err=%s, isCovered=%d", err, isCovered)
+			}
+		}
 	}
 
 	// start := time.Now()
@@ -1795,36 +1841,6 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		return nil, nil
 	}
 	ec.QueryStats.addSeriesFetched(rssLen)
-
-	// mns := rss.GetUnpackedMetricNames()
-	// logger.Infof("mns=%s", mns)
-	mns := rss.GetMetricNames()
-	mnrs, err := MetricNamesToBytes(mns)
-
-	// fmt.Println("VM ProcessSearchQuery Time:", since.Seconds(), "s")
-	funcNameID := sketch.GetFuncNameID(funcName)
-	// if it's not supported function in VMSketch; just skip sketch look up
-
-	if err == nil && funcNameID >= 1 && funcNameID <= 13 {
-		sargs := getRollupArgForSketches(args, 0) // TODO
-		// logger.Infof("sargs=%s", sargs)
-		// logger.Infof("funcName=%s mns=%s", funcName, mns)
-		sketch_sq := sketch.NewSearchQuery(minTimestamp, ec.End, mnrs, funcNameID, sargs, ec.MaxSeries)
-		ts_results, isCovered, err := netstorage.SearchAndEvalSketchCache(qt, ec.DenyPartialResponse, sketch_sq, ec.Deadline)
-
-		if funcNameID == 13 {
-			logger.Infof("!!! Returned Eval timeseries: tss_len=%d, isCovered=%d, err:%s", len(ts_results), isCovered, err)
-		}
-
-		if err == nil && isCovered {
-			output_ts_results := copy_ts_results(ts_results, ec.AuthTokens[0].AccountID, ec.AuthTokens[0].ProjectID)
-			// Currently only support no multi-tenant mode
-			logger.Infof("I returned with vmsketch eval!")
-			return output_ts_results, err
-		} else {
-			logger.Infof("err=%s, isCovered=%d", err, isCovered)
-		}
-	}
 
 	// Verify timeseries fit available memory during rollup calculations.
 	timeseriesLen := rssLen

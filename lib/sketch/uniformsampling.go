@@ -195,6 +195,13 @@ func (s *UniformSampling) QueryQuantile(phis []float64, t1, t2 int64) []float64 
 	return quantiles(phis, values)
 }
 
+func (s *UniformSampling) IsEmpty() bool {
+	s.mutex.RLock()
+	isEmpty := (len(s.Arr) == 0)
+	s.mutex.RUnlock()
+	return isEmpty
+}
+
 func (s *UniformSampling) Cover(t1, t2 int64) bool {
 	s.mutex.RLock()
 	if len(s.Arr) == 0 {

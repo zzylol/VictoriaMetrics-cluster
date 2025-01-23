@@ -214,22 +214,22 @@ func (s *Sketch) SearchTimeSeriesCoverage(start, end int64, mn *storage.MetricNa
 	sketchIns, lookup := s.sketchCache.LookupMetricNameFuncNamesTimeRange(mn, funcName, start, end)
 	if sketchIns == nil {
 		if err := s.RegisterSingleMetricNameFuncName(mn, funcName, (end-start)*4, (end-start)/100*4); err != nil {
-			return nil, false, fmt.Errorf("failed to register metric name and function name with window")
+			return nil, true, fmt.Errorf("failed to register metric name and function name with window")
 		}
 		sketchIns, lookup = s.sketchCache.LookupMetricNameFuncNamesTimeRange(mn, funcName, start, end)
 	}
 
 	if sketchIns == nil {
 		// return nil, false, fmt.Errorf("sketchIns doesn't allocated")
-		return nil, false, nil
+		return nil, true, nil
 	}
 
 	if !lookup {
-		mint, maxt := sketchIns.PrintMinMaxTimeRange(mn, funcName)
-		fmt.Printf("sketchIns time range: [%d, %d]\n", mint, maxt)
-		if sketchIns.ehkll != nil {
-			logger.Infof("ehkll.s_count=%d mn=%s", sketchIns.ehkll.s_count, mn)
-		}
+		// mint, maxt := sketchIns.PrintMinMaxTimeRange(mn, funcName)
+		// fmt.Printf("sketchIns time range: [%d, %d]\n", mint, maxt)
+		// if sketchIns.ehkll != nil {
+		// 	logger.Infof("ehkll.s_count=%d mn=%s", sketchIns.ehkll.s_count, mn)
+		// }
 		// return nil, false, fmt.Errorf("sketch cache doesn't cover metricName %s, time range: [%d, %d]", mn, start, end)
 		return &SketchResult{sketchIns: sketchIns, MetricName: mn}, false, nil
 	}
@@ -253,7 +253,7 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 	defer qt.Done()
 
 	if len(MetricNameRaws) == 0 {
-		return nil, false, nil
+		return nil, true, nil
 	}
 
 	srs := &SketchResults{}
@@ -279,23 +279,27 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 		if err != nil || first_err == nil {
 			first_err = err
 		}
-		srs.sketchInss = append(srs.sketchInss, *sr)
+		if sr != nil {
+			srs.sketchInss = append(srs.sketchInss, *sr)
+		}
 	}
 
 	if first_err != nil || isCovered_final == false {
 		return nil, isCovered_final, first_err
 	}
 
-	// logger.Errorf("Started Sketch Eval()...")
+	if len(srs.sketchInss) == 0 {
+		return nil, true, nil
+	}
 
 	workers := MaxWorkers()
-	if workers > len(MetricNameRaws) {
-		workers = len(MetricNameRaws)
+	if workers > len(srs.sketchInss) {
+		workers = len(srs.sketchInss)
 	}
 
 	logger.Infof("workers=%d", workers)
 
-	seriesPerWorker := (len(MetricNameRaws) + workers - 1) / workers
+	seriesPerWorker := (len(srs.sketchInss) + workers - 1) / workers
 	tss := make([]*Timeseries, 0)
 	local_tss := make([][]*Timeseries, workers)
 
@@ -307,8 +311,8 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 			local_tss[workerID] = make([]*Timeseries, 0)
 			startIdx := workerID * seriesPerWorker
 			endIdx := startIdx + seriesPerWorker
-			if endIdx > len(MetricNameRaws) {
-				endIdx = len(MetricNameRaws)
+			if endIdx > len(srs.sketchInss) {
+				endIdx = len(srs.sketchInss)
 			}
 			// logger.Infof("startIdx=%d, endIdx=%d, sketchIss len=%d", startIdx, endIdx, len(srs.sketchInss))
 			for idx := startIdx; idx < endIdx; idx++ { // timeseries idx

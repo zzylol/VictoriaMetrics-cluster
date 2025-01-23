@@ -49,7 +49,9 @@ func newSketchNode(ms *metrics.Set, group *sketchNodesGroup, addr string) *sketc
 		addr += ":8501"
 	}
 	// There is no need in requests compression, since vmselect requests are usually very small.
-	connPool := netutil.NewConnPool(ms, "vmselect", addr, handshake.VMSelectClient, 0, *vmstorageDialTimeout, *vmstorageUserTimeout)
+	connPool := netutil.NewConnPool(ms, "vmselect-vmsketch", addr, handshake.VMSelectClient, 0, *vmstorageDialTimeout, *vmstorageUserTimeout)
+
+	logger.Infof("sketch node addr=%s", addr)
 
 	sn := &sketchNode{
 		group:    group,
@@ -808,8 +810,6 @@ func (sn *sketchNode) searchAndEvalOnConn(bc *handshake.BufferedConn, requestDat
 			return tss, isCovered, nil
 		}
 		unmarshaled_tss, err := sketch.UnmarshalTimeseriesFast(buf)
-
-		logger.Infof("received eval 1 tss=%s", unmarshaled_tss)
 
 		if err != nil {
 			return nil, false, fmt.Errorf("cannot unmarshal timeseries: %w", err)

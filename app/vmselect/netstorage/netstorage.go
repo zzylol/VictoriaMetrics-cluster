@@ -3185,6 +3185,8 @@ func newStorageNode(ms *metrics.Set, group *storageNodesGroup, addr string) *sto
 	// There is no need in requests compression, since vmselect requests are usually very small.
 	connPool := netutil.NewConnPool(ms, "vmselect", addr, handshake.VMSelectClient, 0, *vmstorageDialTimeout, *vmstorageUserTimeout)
 
+	logger.Infof("storage node addr=%s", addr)
+
 	sn := &storageNode{
 		group:    group,
 		connPool: connPool,
