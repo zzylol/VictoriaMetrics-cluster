@@ -354,6 +354,16 @@ func (ehu *ExpoHistogramUnivOptimized) Update(time_ int64, fvalue float64) {
 
 }
 
+func (eh *ExpoHistogramUnivOptimized) IsEmpty() bool {
+	eh.mutex.RLock()
+	if eh.s_count+eh.map_count == 0 {
+		eh.mutex.RUnlock()
+		return true
+	}
+	eh.mutex.RUnlock()
+	return false
+}
+
 func (eh *ExpoHistogramUnivOptimized) Cover(mint, maxt int64) bool {
 	eh.mutex.RLock()
 	if eh.s_count+eh.map_count == 0 {

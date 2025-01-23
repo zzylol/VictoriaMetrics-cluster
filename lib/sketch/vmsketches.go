@@ -453,7 +453,7 @@ func (vs *VMSketches) LookupMetricNameFuncNamesTimeRange(mn *storage.MetricNameN
 	hash := MetricNameHash(mn)
 	series := vs.series.getByHash(hash, mn)
 	if series == nil || series.sketchInstances == nil {
-		return nil, false
+		return nil, true
 	}
 	stypes := make([]SketchType, 0)
 
@@ -468,7 +468,9 @@ func (vs *VMSketches) LookupMetricNameFuncNamesTimeRange(mn *storage.MetricNameN
 		switch stype {
 		case EHUniv:
 			if series.sketchInstances.ehuniv == nil {
-				return nil, false
+				return nil, true
+			} else if series.sketchInstances.ehuniv.IsEmpty() {
+				return nil, true
 			} else if series.sketchInstances.ehuniv.Cover(startt, maxt) == false {
 				if series.sketchInstances.ehuniv.time_window_size < maxt-mint {
 					series.sketchInstances.ehuniv.UpdateWindow(maxt - mint)
@@ -477,7 +479,9 @@ func (vs *VMSketches) LookupMetricNameFuncNamesTimeRange(mn *storage.MetricNameN
 			}
 		case EHKLL:
 			if series.sketchInstances.ehkll == nil {
-				return nil, false
+				return nil, true
+			} else if series.sketchInstances.ehkll.IsEmpty() {
+				return nil, true
 			} else if series.sketchInstances.ehkll.Cover(startt, maxt) == false {
 				// logger.Infof("find EHKLL series, with time range: [%d, %d]", series.sketchInstances.ehkll.GetMinTime(), series.sketchInstances.ehkll.GetMaxTime())
 				if series.sketchInstances.ehkll.time_window_size < maxt-mint {
@@ -489,7 +493,9 @@ func (vs *VMSketches) LookupMetricNameFuncNamesTimeRange(mn *storage.MetricNameN
 			}
 		case USampling:
 			if series.sketchInstances.sampling == nil {
-				return nil, false
+				return nil, true
+			} else if series.sketchInstances.sampling.IsEmpty() {
+				return nil, true
 			} else if series.sketchInstances.sampling.Cover(startt, maxt) == false {
 				// logger.Infof("find Sampling series, with time range: [%d, %d]", series.sketchInstances.sampling.GetMinTime(), series.sketchInstances.sampling.GetMaxTime())
 				if series.sketchInstances.sampling.Time_window_size < maxt-mint {
@@ -500,7 +506,7 @@ func (vs *VMSketches) LookupMetricNameFuncNamesTimeRange(mn *storage.MetricNameN
 				// logger.Infof("find Sampling series, with time range: [%d, %d]", series.sketchInstances.sampling.GetMinTime(), series.sketchInstances.sampling.GetMaxTime())
 			}
 		default:
-			return nil, false
+			return nil, true
 		}
 	}
 	return series.sketchInstances, true

@@ -67,6 +67,10 @@ func getSketchNodeIdx(snb *sketchNodesBucket, at *auth.Token, mnr []byte) int {
 
 	// Do not exclude unavailable storage nodes in order to properly account for rerouted rows in storageNode.push().
 	idx := snb.nodesHash.getNodeIdx(h, nil)
+
+	// logger.Infof("mnr=%s", buf)
+	// logger.Infof("mnrhash=%d", h)
+	// logger.Infof("idx=%d", idx)
 	return idx
 }
 
@@ -880,7 +884,6 @@ func (sn *sketchNode) searchAndEvalOnConn(bc *handshake.BufferedConn, requestDat
 	var isCovered bool
 	isCovered_64, err := readUint64(bc)
 	isCovered = bool(isCovered_64 != 0)
-	logger.Infof("read isCovered=%d", isCovered)
 	for {
 		buf, err = readBytes(buf[:0], bc, maxEvalResultSize)
 		if err != nil {
@@ -919,9 +922,8 @@ func SearchAndEvalSketchCache(qt *querytracer.Tracer, denyPartialResponse bool, 
 	}
 
 	sns := getSketchNodes()
-	logger.Infof("sketch Nodes: %s", sns)
-	snr := startSketchNodesRequestSearch(qt, sns, sqs, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *sketchNode, sq *sketch.SearchQuery) any {
-		return execSearchQuerySketch(qt, sq, func(qt *querytracer.Tracer, requestData []byte) any {
+	snr := startSketchNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *sketchNode) any {
+		return execSearchQuerySketch(qt, sqs, func(qt *querytracer.Tracer, requestData []byte) any {
 			sn.searchAndEvalRequests.Inc()
 			ts_results, isCovered, err := sn.searchAndEval(qt, requestData, deadline)
 			if err != nil {
@@ -939,7 +941,7 @@ func SearchAndEvalSketchCache(qt *querytracer.Tracer, denyPartialResponse bool, 
 
 	// Collect results.
 	tss := make([]*sketch.Timeseries, 0)
-	var isCovered_all bool = true
+	var isCovered_all bool = true // meaning whether time range is covered, if there is a timeseries in the vmsketh node
 	err := snr.collectAllResults(func(result any) error {
 		for _, cr := range result.([]any) {
 			nr := cr.(*sketchEvalResult)
@@ -955,6 +957,9 @@ func SearchAndEvalSketchCache(qt *querytracer.Tracer, denyPartialResponse bool, 
 		return nil, false, fmt.Errorf("cannot evaluate query on all the vmsketch nodes: %w", err)
 	}
 	logger.Infof("tss num=%d", len(tss))
+
+	// Check whether tss cover all queried timeseries
+	// TODO
 	return tss, isCovered_all, err
 }
 

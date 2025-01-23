@@ -245,7 +245,6 @@ sudo systemctl restart docker
 ```
 
 
-
 # Docker images update
 ```
 sudo docker tag victoriametrics/vminsert:[tag] zeyingz/vminsert:[tag]
