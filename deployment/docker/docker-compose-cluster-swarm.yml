@@ -144,7 +144,7 @@ services:
       - "--sketchNode=vmsketch-1:8501"
       - "--sketchNode=vmsketch-2:8501"
       - "--vmalert.proxyURL=http://vmalert:8880"
-      - "-search.maxQueryDuration=3600000s"
+      - "-search.maxQueryDuration=60m"
       - "-search.maxSamplesPerQuery=10000000000000000"
     ports:
       - 8481
@@ -167,7 +167,7 @@ services:
       - "--sketchNode=vmsketch-1:8501"
       - "--sketchNode=vmsketch-2:8501"
       - "--vmalert.proxyURL=http://vmalert:8880"
-      - "-search.maxQueryDuration=3600000s"
+      - "-search.maxQueryDuration=60m"
       - "-search.maxSamplesPerQuery=10000000000000000"
     ports:
       - 8481
