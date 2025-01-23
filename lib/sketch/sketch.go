@@ -218,10 +218,11 @@ func (s *Sketch) SearchTimeSeriesCoverage(start, end int64, mn *storage.MetricNa
 		}
 		sketchIns, lookup = s.sketchCache.LookupMetricNameFuncNamesTimeRange(mn, funcName, start, end)
 	}
+	// TODO: register metric name and function name with window to the vmsketch node, rather than register to all
 
 	if sketchIns == nil {
 		// return nil, false, fmt.Errorf("sketchIns doesn't allocated")
-		return nil, false, nil
+		return nil, true, nil
 	}
 
 	if !lookup {
@@ -275,11 +276,14 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 		mn.SortTags()
 
 		sr, isCovered, err := s.SearchTimeSeriesCoverage(start, end, mn, funcName, maxMetrics)
+
 		isCovered_final = isCovered_final && isCovered
 		if err != nil || first_err == nil {
 			first_err = err
 		}
-		srs.sketchInss = append(srs.sketchInss, *sr)
+		if sr != nil {
+			srs.sketchInss = append(srs.sketchInss, *sr)
+		}
 	}
 
 	if first_err != nil || isCovered_final == false {

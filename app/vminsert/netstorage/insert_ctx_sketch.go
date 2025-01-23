@@ -75,6 +75,10 @@ func (ctx *InsertCtxSketch) GetSketchNodeIdx(at *auth.Token, labels []prompbmars
 
 	// Do not exclude unavailable storage nodes in order to properly account for rerouted rows in storageNode.push().
 	idx := ctx.sknb.nodesHash.getNodeIdx(h, nil)
+
+	// logger.Infof("mnr=%s", buf)
+	// logger.Infof("mnrhash=%d", h)
+	// logger.Infof("idx=%d", idx)
 	return idx
 }
 

@@ -190,6 +190,7 @@ sudo docker stack services stackdemo
 Debug not started cluster service
 ```
 sudo docker service ps --no-trunc {serviceName}
+sudo docker service logs {serviceName} # output the logs 
 ```
 
 Stop stack
@@ -242,7 +243,6 @@ sudo systemctl restart docker
 
 ./bin/vmalert --datasource.url=http://127.0.0.1:8427/select/0/prometheus --remoteRead.url=http://127.0.0.1:8427/select/0/prometheus --remoteWrite.url=http://127.0.0.1:8480/insert/0/prometheus  --rule=/mydata/VictoriaMetrics-cluster/deployment/docker/rules/*.yml -external.url=http://127.0.0.1:3000 -notifier.blackhole
 ```
-
 
 
 # Docker images update

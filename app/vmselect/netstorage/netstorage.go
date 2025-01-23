@@ -123,7 +123,7 @@ func (rss *Results) GetUnpackedMetricNames() []storage.MetricName {
 	for i := range rss.packedTimeseries {
 		mns[i].Reset()
 		if err := mns[i].Unmarshal(bytesutil.ToUnsafeBytes(rss.packedTimeseries[i].metricName)); err != nil {
-			fmt.Println("cannot unmarshal metricName %s: %w", rss.packedTimeseries[i].metricName, err)
+			logger.Errorf("[GetUnpackedMetricNames] cannot unmarshal metricName %s: %w", rss.packedTimeseries[i].metricName, err)
 		}
 	}
 	return mns
