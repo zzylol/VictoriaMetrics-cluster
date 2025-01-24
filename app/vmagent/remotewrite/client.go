@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/awsapi"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/flagutil"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/logger"
@@ -22,7 +23,6 @@ import (
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/ratelimiter"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/timerpool"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/timeutil"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
