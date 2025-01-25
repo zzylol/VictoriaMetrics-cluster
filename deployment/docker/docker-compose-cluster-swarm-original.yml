@@ -165,7 +165,7 @@ services:
       - ./rules/alerts-health.yml:/etc/alerts/alerts-health.yml
       - ./rules/alerts-vmagent.yml:/etc/alerts/alerts-vmagent.yml
       - ./rules/alerts-vmalert.yml:/etc/alerts/alerts-vmalert.yml
-      - ./rules/fake-metrics-distinct.yml:/etc/alerts/fake-metrics.yml
+      - ./rules/fake-metrics-4-mix.yml:/etc/alerts/fake-metrics.yml
     command:
       - "--datasource.url=http://vmauth:8427/select/0/prometheus"
       - "--remoteRead.url=http://vmauth:8427/select/0/prometheus"

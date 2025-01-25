@@ -1,0 +1,51 @@
+groups:
+  - name: fake_metric_quantile100000_concurrent
+    rules:
+      - record: fake_metric_quantile100000
+        expr: quantile_over_time(0.9, fake_machine_metric[100000s])
+  - name: fake_metric_quantile10000_concurrent
+    rules:
+      - record: fake_metric_quantile10000
+        expr: quantile_over_time(0.9, fake_machine_metric[10000s])
+  - name: fake_metric_quantile1000_concurrent
+    rules:  
+      - record: fake_metric_quantile1000
+        expr: quantile_over_time(0.9, fake_machine_metric[1000s])
+  - name: fake_metric_avg1000000_concurrent
+    rules:
+      - record: fake_metric_avg1000000
+        expr: avg_over_time(fake_machine_metric[100000s])
+  - name: fake_metric_avg100000_concurrent
+    rules:
+      - record: fake_metric_avg100000
+        expr: avg_over_time(fake_machine_metric[10000s])
+  - name: fake_metric_avg1000_concurrent
+    rules:  
+      - record: fake_metric_avg10000
+        expr: avg_over_time(fake_machine_metric[1000s])
+      
+  - name: fake_metric_max1000000_concurrent
+    rules:
+      - record: fake_metric_max1000000
+        expr: max_over_time(fake_machine_metric[100000s])
+  - name: fake_metric_max100000_concurrent
+    rules:
+      - record: fake_metric_max100000
+        expr: max_over_time(fake_machine_metric[10000s])
+  - name: fake_metric_max1000_concurrent
+    rules:  
+      - record: fake_metric_max10000
+        expr: max_over_time(fake_machine_metric[1000s])
+
+  - name: fake_metric_distinct1000000_concurrent
+    rules:
+      - record: fake_metric_distinct1000000
+        expr: distinct_over_time(fake_machine_metric[100000s])
+  - name: fake_metric_distinct100000_concurrent
+    rules:
+      - record: fake_metric_distinct100000
+        expr: distinct_over_time(fake_machine_metric[10000s])
+  - name: fake_metric_distinct1000_concurrent
+    rules:  
+      - record: fake_metric_distinct10000
+        expr: distinct_over_time(fake_machine_metric[1000s])
