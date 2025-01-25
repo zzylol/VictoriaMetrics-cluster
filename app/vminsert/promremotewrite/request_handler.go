@@ -2,6 +2,7 @@ package promremotewrite
 
 import (
 	"net/http"
+	"sync"
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/zzylol/VictoriaMetrics-cluster/app/vminsert/netstorage"
@@ -81,10 +82,17 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 				ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ctx.Labels)
 				ctx_sketch.MetricNameBuf = storage.MarshalMetricNameRaw(ctx_sketch.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ctx_sketch.Labels)
 			}
+			var wg sync.WaitGroup
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				ctx_sketch.WriteDataPointExtSketch(sketchNodeIdx, ctx_sketch.MetricNameBuf, r.Timestamp, r.Value)
+			}()
 			if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, r.Timestamp, r.Value); err != nil {
+				wg.Wait()
 				return err
 			}
-			go ctx_sketch.WriteDataPointExtSketch(sketchNodeIdx, ctx_sketch.MetricNameBuf, r.Timestamp, r.Value)
+			wg.Wait()
 		}
 		perTenantRows[*atLocal] += len(ts.Samples)
 	}
