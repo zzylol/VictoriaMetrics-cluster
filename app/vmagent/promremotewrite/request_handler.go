@@ -2,6 +2,7 @@ package promremotewrite
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/zzylol/VictoriaMetrics-cluster/app/vmagent/common"
@@ -79,50 +80,53 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 	return nil
 }
 
-func InsertTest(testTimeseriesNum int) error {
+func InsertTest(testTimeseriesNum int) (float64, float64, float64) {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
 	timeseries := make([]prompb.TimeSeries, testTimeseriesNum)
 	total_time_length := 2160000
+	var total_ops float64 = 0
 
-	for i := 0; i < total_time_length; i += 100 {
+	start := time.Now()
+	for time_idx := 0; time_idx < total_time_length; time_idx += 100 {
+		rowsTotal := 0
+		tssDst := ctx.WriteRequest.Timeseries[:0]
+		labels := ctx.Labels[:0]
+		samples := ctx.Samples[:0]
 
-	}
-
-	tssDst := ctx.WriteRequest.Timeseries[:0]
-	labels := ctx.Labels[:0]
-	samples := ctx.Samples[:0]
-	for i := range timeseries {
-		ts := &timeseries[i]
-
-		labelsLen := len(labels)
-		for i := range ts.Labels {
-			label := &ts.Labels[i]
-			labels = append(labels, prompbmarshal.Label{
-				Name:  label.Name,
-				Value: label.Value,
+		for i := range timeseries {
+			ts := &timeseries[i]
+			rowsTotal += len(ts.Samples)
+			labelsLen := len(labels)
+			for i := range ts.Labels {
+				label := &ts.Labels[i]
+				labels = append(labels, prompbmarshal.Label{
+					Name:  label.Name,
+					Value: label.Value,
+				})
+			}
+			samplesLen := len(samples)
+			for i := range ts.Samples {
+				sample := &ts.Samples[i]
+				samples = append(samples, prompbmarshal.Sample{
+					Value:     sample.Value,
+					Timestamp: sample.Timestamp,
+				})
+			}
+			tssDst = append(tssDst, prompbmarshal.TimeSeries{
+				Labels:  labels[labelsLen:],
+				Samples: samples[samplesLen:],
 			})
 		}
-		samplesLen := len(samples)
-		for i := range ts.Samples {
-			sample := &ts.Samples[i]
-			samples = append(samples, prompbmarshal.Sample{
-				Value:     sample.Value,
-				Timestamp: sample.Timestamp,
-			})
+		ctx.WriteRequest.Timeseries = tssDst
+		ctx.Labels = labels
+		ctx.Samples = samples
+		if remotewrite.TryPush(nil, &ctx.WriteRequest) {
+			total_ops += float64(rowsTotal)
 		}
-		tssDst = append(tssDst, prompbmarshal.TimeSeries{
-			Labels:  labels[labelsLen:],
-			Samples: samples[samplesLen:],
-		})
 	}
-	ctx.WriteRequest.Timeseries = tssDst
-	ctx.Labels = labels
-	ctx.Samples = samples
-	if !remotewrite.TryPush(nil, &ctx.WriteRequest) {
-		return remotewrite.ErrQueueFullHTTPRetry
-	}
-
-	return nil
+	duration := float64(time.Since(start).Seconds())
+	throughput := total_ops / duration
+	return total_ops, duration, throughput
 }

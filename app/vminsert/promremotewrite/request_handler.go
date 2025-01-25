@@ -2,6 +2,7 @@ package promremotewrite
 
 import (
 	"net/http"
+	"sync"
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/zzylol/VictoriaMetrics-cluster/app/vminsert/netstorage"
