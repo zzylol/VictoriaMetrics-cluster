@@ -84,9 +84,7 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 			if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, r.Timestamp, r.Value); err != nil {
 				return err
 			}
-			if err := ctx_sketch.WriteDataPointExtSketch(sketchNodeIdx, ctx_sketch.MetricNameBuf, r.Timestamp, r.Value); err != nil {
-				return err
-			}
+			go ctx_sketch.WriteDataPointExtSketch(sketchNodeIdx, ctx_sketch.MetricNameBuf, r.Timestamp, r.Value)
 		}
 		perTenantRows[*atLocal] += len(ts.Samples)
 	}
