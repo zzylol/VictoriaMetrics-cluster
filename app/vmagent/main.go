@@ -49,6 +49,7 @@ import (
 )
 
 var (
+	testInsertNodeNum = flag.Int("testInsertNodeNum", 1, "Number of vminsert nodes")
 	testTimeseriesNum = flag.Int("testTimeseriesNum", 10000, "Number of timeseries for insertion throughput test")
 	httpListenAddrs   = flagutil.NewArrayString("httpListenAddr", "TCP address to listen for incoming http requests. "+
 		"Set this flag to empty value in order to disable listening on any port. This mode may be useful for running multiple vmagent instances on the same server. "+
@@ -157,7 +158,7 @@ func main() {
 	promscrape.Init(remotewrite.PushDropSamplesOnFailure)
 
 	go httpserver.Serve(listenAddrs, useProxyProtocol, requestHandler)
-	promremotewrite.InsertTest(*testTimeseriesNum)
+	promremotewrite.InsertTest(*testTimeseriesNum, *testInsertNodeNum)
 	logger.Infof("started vmagent in %.3f seconds", time.Since(startTime).Seconds())
 
 	pushmetrics.Init()
