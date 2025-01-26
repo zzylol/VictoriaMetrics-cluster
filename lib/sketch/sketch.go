@@ -12,6 +12,7 @@ import (
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/querytracer"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/storage"
 	"github.com/zzylol/VictoriaMetrics-cluster/lib/syncwg"
+	uber_atomic "go.uber.org/atomic"
 )
 
 // ErrDeadlineExceeded is returned when the request times out.
@@ -84,24 +85,45 @@ var WG syncwg.WaitGroup
 func (s *Sketch) AddRows(mrs []storage.MetricRow) error {
 	WG.Add(1)
 
-	var firstWarn error
-	mn := storage.GetMetricNameNoTenant()
-	defer storage.PutMetricNameNoTenant(mn)
-
-	for i := range mrs {
-		if err := mn.UnmarshalRaw(mrs[i].MetricNameRaw); err != nil {
-			if firstWarn != nil {
-				firstWarn = fmt.Errorf("cannot umarshal MetricNameRaw %q: %w", mrs[i].MetricNameRaw, err)
-			}
-		}
-
-		err := s.sketchCache.AddRow(mn, mrs[i].Timestamp, mrs[i].Value, s.testWindowSize, s.testAlgo)
-		if err != nil && firstWarn != nil {
-			firstWarn = fmt.Errorf("cannot add row to sketch cache MetricNameRaw %q: %w", mrs[i].MetricNameRaw, err)
-		}
+	workers := MaxWorkers()
+	if workers > len(mrs) {
+		workers = len(mrs)
 	}
+	seriesPerWorker := (len(mrs) + workers - 1) / workers
+
+	var firstWarn uber_atomic.Error
+	firstWarn.Store(nil)
+
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	for i := 0; i < workers; i++ {
+		go func(workerID int) {
+			defer wg.Done()
+			startIdx := workerID * seriesPerWorker
+			endIdx := startIdx + seriesPerWorker
+			if endIdx > len(mrs) {
+				endIdx = len(mrs)
+			}
+			mn := storage.GetMetricNameNoTenant()
+			defer storage.PutMetricNameNoTenant(mn)
+			for idx := startIdx; idx < endIdx; idx++ { // timeseries idx
+				if err := mn.UnmarshalRaw(mrs[idx].MetricNameRaw); err != nil {
+					if firstWarn.Load() != nil {
+						firstWarn.Store(fmt.Errorf("cannot umarshal MetricNameRaw %q: %w", mrs[i].MetricNameRaw, err))
+					}
+				}
+
+				err := s.sketchCache.AddRow(mn, mrs[idx].Timestamp, mrs[idx].Value, s.testWindowSize, s.testAlgo)
+				if err != nil && firstWarn.Load() != nil {
+					firstWarn.Store(fmt.Errorf("cannot add row to sketch cache MetricNameRaw %q: %w", mrs[i].MetricNameRaw, err))
+				}
+			}
+		}(i)
+	}
+	wg.Wait()
+
 	WG.Done()
-	return firstWarn
+	return firstWarn.Load()
 }
 
 func (s *Sketch) AddRow(metricNameRaw []byte, timestamp int64, value float64) error {
