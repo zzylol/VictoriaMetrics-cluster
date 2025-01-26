@@ -4,7 +4,11 @@ services:
   #  And forward them to --remoteWrite.url
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:heads-insertion_throughput-0-gcf40ea5-dirty-da39a3ee
+    image: zeyingz/vmagent-insert-throughput:v0.0.1
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == datasource
     depends_on:
       - "vminsert"
     ports:
@@ -15,7 +19,7 @@ services:
     command:
       - "--promscrape.config=/etc/prometheus/prometheus.yml"
       - "--remoteWrite.url=http://vminsert:8480/insert/0/prometheus/"
-      - "--testSampleLength=20000"
+      - "--testSampleLength=2160000"
     restart: always
  
 
@@ -24,6 +28,10 @@ services:
   vmstorage-1:
     container_name: vmstorage-1
     image: victoriametrics/vmstorage:v1.108.1-cluster 
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == datasource
     ports:
       - 8482
       - 8400
@@ -36,6 +44,10 @@ services:
   vmstorage-2:
     container_name: vmstorage-2
     image: victoriametrics/vmstorage:v1.108.1-cluster 
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker
     ports:
       - 8482
       - 8400
@@ -50,7 +62,11 @@ services:
   # where N is number of vmsketches (2 in this case).
   vmsketch-1:
     container_name: vmsketch-1
-    image: victoriametrics/vmsketch:heads-insertion_throughput-0-gcf40ea5-dirty-da39a3ee
+    image: zeyingz/vmsketch-insert-throughput:v0.0.1
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == datasource
     ports:
       - 8582
       - 8500
@@ -61,7 +77,11 @@ services:
     restart: always
   vmsketch-2:
     container_name: vmsketch-2
-    image: victoriametrics/vmsketch:heads-insertion_throughput-0-gcf40ea5-dirty-da39a3ee
+    image: zeyingz/vmsketch-insert-throughput:v0.0.1
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker
     ports:
       - 8582
       - 8500
@@ -75,7 +95,11 @@ services:
   # pre-process them and distributes across configured vmstorage shards.
   vminsert:
     container_name: vminsert
-    image: victoriametrics/vminsert:heads-insertion_throughput-0-gcf40ea5-dirty-da39a3ee
+    image: zeyingz/vminsert-insert-throughput:v0.0.1
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == datasource
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -87,7 +111,7 @@ services:
       - "--sketchNode=vmsketch-1:8500"
       - "--sketchNode=vmsketch-2:8500"
     ports:
-      - 8480:8480
+      - 8480
     restart: always
  
 volumes:

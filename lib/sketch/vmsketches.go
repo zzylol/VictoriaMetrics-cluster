@@ -441,6 +441,7 @@ func (vs *VMSketches) AddRow(mn *storage.MetricNameNoTenant, t int64, value floa
 		if s.oldestTimestamp == -1 {
 			s.oldestTimestamp = t
 		}
+		// logger.Infof("sketch addRow: %s, %d, %f", mn, t, value)
 		s.sketchInstances.ehuniv.Update(t, value)
 	}
 
