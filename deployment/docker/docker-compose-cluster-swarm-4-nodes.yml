@@ -16,7 +16,7 @@ services:
       - 8429:8429
     volumes:
       - vmagentdata:/vmagentdata
-      - ./prometheus-cluster.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus-cluster-4-nodes.yml:/etc/prometheus/prometheus.yml
     command:
       - "--promscrape.config=/etc/prometheus/prometheus.yml"
       - "--remoteWrite.url=http://vminsert-1:8480/insert/0/prometheus/"
