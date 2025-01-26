@@ -393,12 +393,32 @@ func (vs *VMSketches) GetSeriesCount() uint64 {
 	return vs.numSeries.Load()
 }
 
-func (vs *VMSketches) AddRow(mn *storage.MetricNameNoTenant, t int64, value float64) error {
+func (vs *VMSketches) AddRow(mn *storage.MetricNameNoTenant, t int64, value float64, testWindowSize int, testAlgo string) error {
 	mn.SortTags()
 	hash := MetricNameHash(mn)
 	s := vs.series.getByHash(hash, mn)
 	if s == nil || s.sketchInstances == nil {
-		return nil // fmt.Errorf("not find timeseries")
+		funcName := "avg_over_time"
+		switch testAlgo {
+		case "sampling":
+			funcName = "avg_over_time"
+		case "ehkll":
+			funcName = "quantile_over_time"
+		case "ehuniv":
+			funcName = "entropy_over_time"
+		case "all":
+		default:
+			return fmt.Errorf("not supported test algorithm")
+		}
+		err := vs.NewVMSketchCacheInstance(mn, funcName, int64(testWindowSize), int64(testWindowSize/100))
+		if err != nil {
+			return err
+		}
+	}
+
+	s = vs.series.getByHash(hash, mn)
+	if s == nil || s.sketchInstances == nil {
+		return fmt.Errorf("failed to create metric name timeseries")
 	}
 
 	if s.sketchInstances.ehkll != nil {

@@ -119,7 +119,7 @@ publish: \
 package: \
 	package-vminsert \
 	package-vmselect \
-	package-vmstorage \
+	package-vmagent \
 	package-vmsketch
 
 publish-release:

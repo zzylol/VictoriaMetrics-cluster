@@ -51,6 +51,9 @@ import (
 var (
 	testInsertNodeNum = flag.Int("testInsertNodeNum", 1, "Number of vminsert nodes")
 	testTimeseriesNum = flag.Int("testTimeseriesNum", 10000, "Number of timeseries for insertion throughput test")
+	testSampleLength  = flag.Int("testSampleLength", 20000, "Length of number of samples")
+	testWindowSize    = flag.Int("testWindowSize", 10000, "Window size")
+	testAlgo          = flag.String("testAlgo", "sampling", "promsketch algorithm tested")
 	httpListenAddrs   = flagutil.NewArrayString("httpListenAddr", "TCP address to listen for incoming http requests. "+
 		"Set this flag to empty value in order to disable listening on any port. This mode may be useful for running multiple vmagent instances on the same server. "+
 		"Note that /targets and /metrics pages aren't available if -httpListenAddr=''. See also -tls and -httpListenAddr.useProxyProtocol")
@@ -157,9 +160,10 @@ func main() {
 
 	promscrape.Init(remotewrite.PushDropSamplesOnFailure)
 
-	go httpserver.Serve(listenAddrs, useProxyProtocol, requestHandler)
-	promremotewrite.InsertTest(*testTimeseriesNum, *testInsertNodeNum)
-	logger.Infof("started vmagent in %.3f seconds", time.Since(startTime).Seconds())
+	// go httpserver.Serve(listenAddrs, useProxyProtocol, requestHandler)
+	// logger.Infof("started vmagent in %.3f seconds", time.Since(startTime).Seconds())
+	total_ops, duration, insert_throughput := promremotewrite.InsertTest(*testTimeseriesNum, *testInsertNodeNum, *testSampleLength)
+	logger.Infof("Insertion Throughput test: total_ops=%f (samples), duration=%f(s), insert_throughput=%f (samples/s)", total_ops, duration, insert_throughput)
 
 	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()

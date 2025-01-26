@@ -83,10 +83,10 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 	return nil
 }
 
-func InsertTest(testTimeseriesNum, testInsertNodeNum int) (float64, float64, float64) {
+func InsertTest(testTimeseriesNum, testInsertNodeNum, testSampleLength int) (float64, float64, float64) {
 
 	timeseries := make([]prompb.TimeSeries, testTimeseriesNum)
-	total_time_length := 2160000
+	total_time_length := testSampleLength
 	var total_ops float64 = 0
 
 	for j := 0; j < testTimeseriesNum; j++ {
@@ -95,7 +95,7 @@ func InsertTest(testTimeseriesNum, testInsertNodeNum int) (float64, float64, flo
 		timeseries[j].Labels[0].Name = "fake_metric"
 		timeseries[j].Labels[0].Value = fakeMetric
 		timeseries[j].Samples = make([]prompb.Sample, 0) // fake, will fill later
-		// TODO: call register sketch instance
+		// TODO: call register sketch instance here, now just register in vmsketch through args
 	}
 
 	timeDelta := int64(100)

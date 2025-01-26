@@ -4,7 +4,7 @@ services:
   #  And forward them to --remoteWrite.url
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:v1.108.1
+    image: victoriametrics/vmagent:heads-insertion_throughput-0-g6af58ea-dirty-a39f7794
     depends_on:
       - "vminsert"
     ports:
@@ -15,6 +15,7 @@ services:
     command:
       - "--promscrape.config=/etc/prometheus/prometheus.yml"
       - "--remoteWrite.url=http://vminsert:8480/insert/0/prometheus/"
+      - "--testSampleLength=20000"
     restart: always
 
   # Grafana instance configured with VictoriaMetrics as datasource
@@ -66,26 +67,32 @@ services:
   # where N is number of vmsketches (2 in this case).
   vmsketch-1:
     container_name: vmsketch-1
-    image: victoriametrics/vmsketch:heads-master-0-g76bb3d9
+    image: victoriametrics/vmsketch:heads-insertion_throughput-0-g6af58ea-dirty-a39f7794
     ports:
       - 8582
       - 8500
       - 8501
+    command:
+      - "--testWindowSize=10000"
+      - "--testAlgo=sampling"
     restart: always
   vmsketch-2:
     container_name: vmsketch-2
-    image: victoriametrics/vmsketch:heads-master-0-g76bb3d9
+    image: victoriametrics/vmsketch:heads-insertion_throughput-0-g6af58ea-dirty-a39f7794
     ports:
       - 8582
       - 8500
       - 8501
+    command:
+      - "--testWindowSize=10000"
+      - "--testAlgo=sampling"
     restart: always
 
   # vminsert is ingestion frontend. It receives metrics pushed by vmagent,
   # pre-process them and distributes across configured vmstorage shards.
   vminsert:
     container_name: vminsert
-    image: victoriametrics/vminsert:heads-master-0-g1fad55c-dirty-10802a78
+    image: victoriametrics/vminsert:heads-insertion_throughput-0-g6af58ea-dirty-a39f7794
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -104,7 +111,7 @@ services:
   # vmselect collects results from configured `--storageNode` shards.
   vmselect-1:
     container_name: vmselect-1
-    image: victoriametrics/vmselect:heads-master-0-g76bb3d9
+    image: victoriametrics/vmselect:heads-insertion_throughput-0-g6af58ea-dirty-a39f7794
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -121,7 +128,7 @@ services:
     restart: always
   vmselect-2:
     container_name: vmselect-2
-    image: victoriametrics/vmselect:heads-master-0-g76bb3d9
+    image: victoriametrics/vmselect:heads-insertion_throughput-0-g6af58ea-dirty-1d9e4e63
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"

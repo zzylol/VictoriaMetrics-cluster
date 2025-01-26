@@ -24,6 +24,8 @@ import (
 )
 
 var (
+	testWindowSize   = flag.Int("testWindowSize", 10000, "Window size")
+	testAlgo         = flag.String("testAlgo", "sampling", "promsketch algorithm tested")
 	httpListenAddrs  = flagutil.NewArrayString("httpListenAddr", "Address to listen for incoming http requests. See also -httpListenAddr.useProxyProtocol")
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the given -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
@@ -81,7 +83,7 @@ func main() {
 
 	logger.Infof("opening sketch in memory")
 	startTime := time.Now()
-	sketch := sketch.MustOpenSketchCache()
+	sketch := sketch.MustOpenSketchCache(*testWindowSize, *testAlgo)
 
 	logger.Infof("successfully opened sketch in %.3f seconds;", time.Since(startTime).Seconds())
 

@@ -44,11 +44,16 @@ type Sketch struct {
 
 	// isReadOnly is set to true when the storage is in read-only mode.
 	isReadOnly atomic.Bool
+
+	testWindowSize int
+	testAlgo       string
 }
 
-func MustOpenSketchCache() *Sketch {
+func MustOpenSketchCache(testWindowSize int, testAlgo string) *Sketch {
 	return &Sketch{
-		sketchCache: NewVMSketches(),
+		sketchCache:    NewVMSketches(),
+		testWindowSize: testWindowSize,
+		testAlgo:       testAlgo,
 	}
 }
 
@@ -90,7 +95,7 @@ func (s *Sketch) AddRows(mrs []storage.MetricRow) error {
 			}
 		}
 
-		err := s.sketchCache.AddRow(mn, mrs[i].Timestamp, mrs[i].Value)
+		err := s.sketchCache.AddRow(mn, mrs[i].Timestamp, mrs[i].Value, s.testWindowSize, s.testAlgo)
 		if err != nil && firstWarn != nil {
 			firstWarn = fmt.Errorf("cannot add row to sketch cache MetricNameRaw %q: %w", mrs[i].MetricNameRaw, err)
 		}
@@ -107,7 +112,7 @@ func (s *Sketch) AddRow(metricNameRaw []byte, timestamp int64, value float64) er
 	}
 
 	// fmt.Println(mn, timestamp, value)
-	return s.sketchCache.AddRow(mn, timestamp, value)
+	return s.sketchCache.AddRow(mn, timestamp, value, s.testWindowSize, s.testAlgo)
 }
 
 func (s *Sketch) GetSketchCacheStatus(qt *querytracer.Tracer, deadline uint64) (*SketchCacheStatus, error) {
