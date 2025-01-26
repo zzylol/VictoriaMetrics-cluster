@@ -4,7 +4,7 @@ services:
   #  And forward them to --remoteWrite.url
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:heads-insertion_throughput-0-g6af58ea-dirty-a39f7794
+    image: victoriametrics/vmagent:heads-insertion_throughput-0-gcf40ea5-dirty-da39a3ee
     depends_on:
       - "vminsert"
     ports:
@@ -50,7 +50,7 @@ services:
   # where N is number of vmsketches (2 in this case).
   vmsketch-1:
     container_name: vmsketch-1
-    image: victoriametrics/vmsketch:heads-insertion_throughput-0-g6af58ea-dirty-a39f7794
+    image: victoriametrics/vmsketch:heads-insertion_throughput-0-gcf40ea5-dirty-da39a3ee
     ports:
       - 8582
       - 8500
@@ -61,7 +61,7 @@ services:
     restart: always
   vmsketch-2:
     container_name: vmsketch-2
-    image: victoriametrics/vmsketch:heads-insertion_throughput-0-g6af58ea-dirty-a39f7794
+    image: victoriametrics/vmsketch:heads-insertion_throughput-0-gcf40ea5-dirty-da39a3ee
     ports:
       - 8582
       - 8500
@@ -75,7 +75,7 @@ services:
   # pre-process them and distributes across configured vmstorage shards.
   vminsert:
     container_name: vminsert
-    image: victoriametrics/vminsert:heads-insertion_throughput-0-g6af58ea-dirty-a39f7794
+    image: victoriametrics/vminsert:heads-insertion_throughput-0-gcf40ea5-dirty-da39a3ee
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
