@@ -1816,7 +1816,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 				logger.Infof("!!! Returned Eval timeseries: tss_len=%d, isCovered=%d, err:%s", len(ts_results), isCovered, err)
 			}
 
-			if err == nil && isCovered && len(ts_results) == len(mns) {
+			if err == nil && isCovered && len(ts_results) >= len(mns) {
 				output_ts_results := copy_ts_results(ts_results, ec.AuthTokens[0].AccountID, ec.AuthTokens[0].ProjectID)
 				// Currently only support no multi-tenant mode
 				logger.Infof("I returned with vmsketch eval!")
