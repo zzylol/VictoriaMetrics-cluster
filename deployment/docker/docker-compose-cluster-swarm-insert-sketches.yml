@@ -62,7 +62,7 @@ services:
   # where N is number of vmsketches (2 in this case).
   vmsketch-1:
     container_name: vmsketch-1
-    image: zeyingz/vmsketch-insert-throughput:v0.0.1
+    image: zeyingz/vmsketch-insert-throughput:v0.0.2
     deploy:
       placement:
         constraints: 
@@ -72,12 +72,12 @@ services:
       - 8500
       - 8501
     command:
-      - "--testWindowSize=10000"
-      - "--testAlgo=sampling"
+      - "--testWindowSize=1000000"
+      - "--testAlgo=ehkll"
     restart: always
   vmsketch-2:
     container_name: vmsketch-2
-    image: zeyingz/vmsketch-insert-throughput:v0.0.1
+    image: zeyingz/vmsketch-insert-throughput:v0.0.2
     deploy:
       placement:
         constraints: 
@@ -87,8 +87,8 @@ services:
       - 8500
       - 8501
     command:
-      - "--testWindowSize=10000"
-      - "--testAlgo=sampling"
+      - "--testWindowSize=1000000"
+      - "--testAlgo=ehkll"
     restart: always
 
   # vminsert is ingestion frontend. It receives metrics pushed by vmagent,
