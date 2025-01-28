@@ -178,8 +178,6 @@ sudo docker node inspect self --pretty
 
 Start stack in manager node
 ```
-sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm.yml stackdemo
-sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-original.yml stackdemo
 sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-sketches.yml stackdemo
 ```
 
@@ -195,7 +193,8 @@ sudo docker service ps --no-trunc {serviceName}
 
 Stop stack
 ```
-sudo  docker stack rm stackdemo
+sudo docker stack rm stackdemo
+sudo docker volume rm $(sudo docker volume ls)
 ```
 
 # Access cluster
