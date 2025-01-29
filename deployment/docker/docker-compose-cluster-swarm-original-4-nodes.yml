@@ -156,7 +156,7 @@ services:
     deploy:
       placement:
         constraints: 
-          - node.labels.role == worker3
+          - node.labels.role == worker2
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -276,6 +276,8 @@ services:
     depends_on:
       - "vmselect-1"
       - "vmselect-2"
+      - "vmselect-3"
+      - "vmselect-4"
     volumes:
       - ./auth-cluster.yml:/etc/auth.yml
     command:
