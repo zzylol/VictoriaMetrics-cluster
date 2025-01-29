@@ -196,7 +196,8 @@ sudo docker service ps --no-trunc {serviceName}
 
 Stop stack
 ```
-sudo  docker stack rm stackdemo
+sudo docker stack rm stackdemo
+sudo docker volume rm $(sudo docker volume ls)
 ```
 
 # Access cluster
