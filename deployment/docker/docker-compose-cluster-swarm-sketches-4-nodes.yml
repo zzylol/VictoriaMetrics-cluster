@@ -2,21 +2,41 @@ services:
   #  Metrics collector.
   #  It scrapes targets defined in --promscrape.config
   #  And forward them to --remoteWrite.url
-  vmagent:
-    container_name: vmagent
+  vmagent-1:
+    container_name: vmagent-1
     image: victoriametrics/vmagent:v1.108.1
     deploy:
       placement:
         constraints: 
-          - node.labels.role == datasource
+          - node.labels.role == worker1
     depends_on:
       - "vminsert-1"
       - "vminsert-2"
     ports:
-      - 8429:8429
+      - 8429
     volumes:
-      - vmagentdata:/vmagentdata
-      - ./prometheus-cluster-4-nodes.yml:/etc/prometheus/prometheus.yml
+      - vmagentdata-1:/vmagentdata
+      - ./prometheus-cluster-4-nodes-vmagent-1.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--promscrape.config=/etc/prometheus/prometheus.yml"
+      - "--remoteWrite.url=http://vminsert-1:8480/insert/0/prometheus/"
+      - "--remoteWrite.url=http://vminsert-2:8480/insert/0/prometheus/"
+    restart: always
+  vmagent-2:
+    container_name: vmagent-2
+    image: victoriametrics/vmagent:v1.108.1
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker2
+    depends_on:
+      - "vminsert-1"
+      - "vminsert-2"
+    ports:
+      - 8429
+    volumes:
+      - vmagentdata-2:/vmagentdata
+      - ./prometheus-cluster-4-nodes-vmagent-2.yml:/etc/prometheus/prometheus.yml
     command:
       - "--promscrape.config=/etc/prometheus/prometheus.yml"
       - "--remoteWrite.url=http://vminsert-1:8480/insert/0/prometheus/"
@@ -49,7 +69,7 @@ services:
     deploy:
       placement:
         constraints: 
-          - node.labels.role == datasource
+          - node.labels.role == worker1
     ports:
       - 8482
       - 8400
@@ -116,7 +136,7 @@ services:
     deploy:
       placement:
         constraints: 
-          - node.labels.role == datasource
+          - node.labels.role == worker1
     ports:
       - 8582
       - 8500
@@ -167,7 +187,7 @@ services:
     deploy:
       placement:
         constraints: 
-          - node.labels.role == worker2
+          - node.labels.role == worker1
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -226,7 +246,7 @@ services:
     deploy:
       placement:
         constraints: 
-          - node.labels.role == datasource
+          - node.labels.role == worker1
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -376,7 +396,7 @@ services:
       - ./rules/alerts-health.yml:/etc/alerts/alerts-health.yml
       - ./rules/alerts-vmagent.yml:/etc/alerts/alerts-vmagent.yml
       - ./rules/alerts-vmalert.yml:/etc/alerts/alerts-vmalert.yml
-      - ./rules/fake-metrics-distinct.yml:/etc/alerts/fake-metrics.yml
+      - ./rules/fake-metrics-quantile.yml:/etc/alerts/fake-metrics.yml
     command:
       - "--datasource.url=http://vmauth:8427/select/0/prometheus"
       - "--remoteRead.url=http://vmauth:8427/select/0/prometheus"
@@ -403,7 +423,8 @@ services:
     restart: always
 
 volumes:
-  vmagentdata: {}
+  vmagentdata-1: {}
+  vmagentdata-2: {}
   strgdata-1: {}
   strgdata-2: {}
   strgdata-3: {}

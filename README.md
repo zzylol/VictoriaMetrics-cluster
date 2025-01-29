@@ -170,9 +170,9 @@ sudo docker node ls
 ## Run Docker stack
 Docker-compose version: >= 2.0 (install latest)
 
-Add label meatadata to the datasource node
+Add label meatadata to the worker nodes
 ```
-sudo docker node update --label-add role=datasource "hostname of node"
+sudo docker node update --label-add role=worker1 "hostname of node"
 sudo docker node inspect self --pretty
 ```
 
