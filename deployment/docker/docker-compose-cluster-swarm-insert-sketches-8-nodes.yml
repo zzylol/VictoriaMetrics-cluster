@@ -1,0 +1,568 @@
+services:
+  #  Metrics collector.
+  #  It scrapes targets defined in --promscrape.config
+  #  And forward them to --remoteWrite.url
+  vmagent-1:
+    container_name: vmagent-1
+    image: zeyingz/vmagent-insert-throughput:v0.0.3
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker1
+    depends_on:
+      - "vminsert-1"
+      - "vminsert-2"
+      - "vminsert-3"
+      - "vminsert-4"
+    ports:
+      - 8429
+    volumes:
+      - vmagentdata-1:/vmagentdata
+      - ./prometheus-cluster.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--promscrape.config=/etc/prometheus/prometheus.yml"
+      - "--remoteWrite.url=http://vminsert-1:8480/insert/0/prometheus/"
+      - "--remoteWrite.url=http://vminsert-2:8480/insert/0/prometheus/"
+      - "--remoteWrite.url=http://vminsert-3:8480/insert/0/prometheus/"
+      - "--remoteWrite.url=http://vminsert-4:8480/insert/0/prometheus/"
+      - "--testSampleLength=2160000"
+      - "--testTimeseriesNum=10000"
+      - "--testStartSeriesID=0"
+      - "--testInsertNodeNum=4"
+    restart: always
+  vmagent-2:
+    container_name: vmagent-2
+    image: zeyingz/vmagent-insert-throughput:v0.0.3
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker3
+    depends_on:
+      - "vminsert-1"
+      - "vminsert-2"
+      - "vminsert-3"
+      - "vminsert-4"
+    ports:
+      - 8429
+    volumes:
+      - vmagentdata-2:/vmagentdata
+      - ./prometheus-cluster.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--promscrape.config=/etc/prometheus/prometheus.yml"
+      - "--remoteWrite.url=http://vminsert-1:8480/insert/0/prometheus/"
+      - "--remoteWrite.url=http://vminsert-2:8480/insert/0/prometheus/"
+      - "--remoteWrite.url=http://vminsert-3:8480/insert/0/prometheus/"
+      - "--remoteWrite.url=http://vminsert-4:8480/insert/0/prometheus/"
+      - "--testSampleLength=2160000"
+      - "--testTimeseriesNum=10000"
+      - "--testStartSeriesID=10000"
+      - "--testInsertNodeNum=4"
+    restart: always
+  vmagent-3:
+    container_name: vmagent-3
+    image: zeyingz/vmagent-insert-throughput:v0.0.3
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker5
+    depends_on:
+      - "vminsert-1"
+      - "vminsert-2"
+      - "vminsert-3"
+      - "vminsert-4"
+    ports:
+      - 8429
+    volumes:
+      - vmagentdata-3:/vmagentdata
+      - ./prometheus-cluster.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--promscrape.config=/etc/prometheus/prometheus.yml"
+      - "--remoteWrite.url=http://vminsert-1:8480/insert/0/prometheus/"
+      - "--remoteWrite.url=http://vminsert-2:8480/insert/0/prometheus/"
+      - "--remoteWrite.url=http://vminsert-3:8480/insert/0/prometheus/"
+      - "--remoteWrite.url=http://vminsert-4:8480/insert/0/prometheus/"
+      - "--testSampleLength=2160000"
+      - "--testTimeseriesNum=10000"
+      - "--testStartSeriesID=20000"
+      - "--testInsertNodeNum=4"
+    restart: always
+  vmagent-4:
+    container_name: vmagent-4
+    image: zeyingz/vmagent-insert-throughput:v0.0.3
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker7
+    depends_on:
+      - "vminsert-1"
+      - "vminsert-2"
+      - "vminsert-3"
+      - "vminsert-4"
+    ports:
+      - 8429
+    volumes:
+      - vmagentdata-4:/vmagentdata
+      - ./prometheus-cluster.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--promscrape.config=/etc/prometheus/prometheus.yml"
+      - "--remoteWrite.url=http://vminsert-1:8480/insert/0/prometheus/"
+      - "--remoteWrite.url=http://vminsert-2:8480/insert/0/prometheus/"
+      - "--remoteWrite.url=http://vminsert-3:8480/insert/0/prometheus/"
+      - "--remoteWrite.url=http://vminsert-4:8480/insert/0/prometheus/"
+      - "--testSampleLength=2160000"
+      - "--testTimeseriesNum=10000"
+      - "--testStartSeriesID=30000"
+      - "--testInsertNodeNum=4"
+    restart: always
+
+  # vmstorage shards. Each shard receives 1/N of all metrics sent to vminserts,
+  # where N is number of vmstorages (2 in this case).
+  vmstorage-1:
+    container_name: vmstorage-1
+    image: victoriametrics/vmstorage:v1.108.1-cluster 
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker1
+    ports:
+      - 8482
+      - 8400
+      - 8401
+    volumes:
+      - strgdata-1:/storage
+    command:
+      - "--storageDataPath=/storage"
+    restart: always
+  vmstorage-2:
+    container_name: vmstorage-2
+    image: victoriametrics/vmstorage:v1.108.1-cluster 
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker2
+    ports:
+      - 8482
+      - 8400
+      - 8401
+    volumes:
+      - strgdata-2:/storage
+    command:
+      - "--storageDataPath=/storage"
+    restart: always
+  # vmstorage shards. Each shard receives 1/N of all metrics sent to vminserts,
+  # where N is number of vmstorages (2 in this case).
+  vmstorage-3:
+    container_name: vmstorage-3
+    image: victoriametrics/vmstorage:v1.108.1-cluster 
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker3
+    ports:
+      - 8482
+      - 8400
+      - 8401
+    volumes:
+      - strgdata-3:/storage
+    command:
+      - "--storageDataPath=/storage"
+    restart: always
+  vmstorage-4:
+    container_name: vmstorage-4
+    image: victoriametrics/vmstorage:v1.108.1-cluster 
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker4
+    ports:
+      - 8482
+      - 8400
+      - 8401
+    volumes:
+      - strgdata-4:/storage
+    command:
+      - "--storageDataPath=/storage"
+    restart: always
+  vmstorage-5:
+    container_name: vmstorage-5
+    image: victoriametrics/vmstorage:v1.108.1-cluster 
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker5
+    ports:
+      - 8482
+      - 8400
+      - 8401
+    volumes:
+      - strgdata-5:/storage
+    command:
+      - "--storageDataPath=/storage"
+    restart: always
+  vmstorage-6:
+    container_name: vmstorage-6
+    image: victoriametrics/vmstorage:v1.108.1-cluster 
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker6
+    ports:
+      - 8482
+      - 8400
+      - 8401
+    volumes:
+      - strgdata-6:/storage
+    command:
+      - "--storageDataPath=/storage"
+    restart: always
+  # vmstorage shards. Each shard receives 1/N of all metrics sent to vminserts,
+  # where N is number of vmstorages (2 in this case).
+  vmstorage-7:
+    container_name: vmstorage-7
+    image: victoriametrics/vmstorage:v1.108.1-cluster 
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker7
+    ports:
+      - 8482
+      - 8400
+      - 8401
+    volumes:
+      - strgdata-7:/storage
+    command:
+      - "--storageDataPath=/storage"
+    restart: always
+  vmstorage-8:
+    container_name: vmstorage-8
+    image: victoriametrics/vmstorage:v1.108.1-cluster 
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker8
+    ports:
+      - 8482
+      - 8400
+      - 8401
+    volumes:
+      - strgdata-8:/storage
+    command:
+      - "--storageDataPath=/storage"
+    restart: always
+
+  # vmsketch shards. Each shard receives 1/N of all metrics sent to vminserts,
+  # where N is number of vmsketches (2 in this case).
+  vmsketch-1:
+    container_name: vmsketch-1
+    image: zeyingz/vmsketch-insert-throughput:v0.0.2
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker1
+    ports:
+      - 8582
+      - 8500
+      - 8501
+    command:
+      - "--testWindowSize=1000000"
+      - "--testAlgo=ehuniv"
+    restart: always
+  vmsketch-2:
+    container_name: vmsketch-2
+    image: zeyingz/vmsketch-insert-throughput:v0.0.2
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker2
+    ports:
+      - 8582
+      - 8500
+      - 8501
+    command:
+      - "--testWindowSize=1000000"
+      - "--testAlgo=ehuniv"
+    restart: always
+  vmsketch-3:
+    container_name: vmsketch-3
+    image: zeyingz/vmsketch-insert-throughput:v0.0.2
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker3
+    ports:
+      - 8582
+      - 8500
+      - 8501
+    command:
+      - "--testWindowSize=1000000"
+      - "--testAlgo=ehuniv"
+    restart: always
+  vmsketch-4:
+    container_name: vmsketch-4
+    image: zeyingz/vmsketch-insert-throughput:v0.0.2
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker4
+    ports:
+      - 8582
+      - 8500
+      - 8501
+    command:
+      - "--testWindowSize=1000000"
+      - "--testAlgo=ehuniv"
+    restart: always
+  vmsketch-5:
+    container_name: vmsketch-5
+    image: zeyingz/vmsketch-insert-throughput:v0.0.2
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker5
+    ports:
+      - 8582
+      - 8500
+      - 8501
+    command:
+      - "--testWindowSize=1000000"
+      - "--testAlgo=ehuniv"
+    restart: always
+  vmsketch-6:
+    container_name: vmsketch-6
+    image: zeyingz/vmsketch-insert-throughput:v0.0.2
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker6
+    ports:
+      - 8582
+      - 8500
+      - 8501
+    command:
+      - "--testWindowSize=1000000"
+      - "--testAlgo=ehuniv"
+    restart: always
+  vmsketch-7:
+    container_name: vmsketch-7
+    image: zeyingz/vmsketch-insert-throughput:v0.0.2
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker7
+    ports:
+      - 8582
+      - 8500
+      - 8501
+    command:
+      - "--testWindowSize=1000000"
+      - "--testAlgo=ehuniv"
+    restart: always
+  vmsketch-8:
+    container_name: vmsketch-8
+    image: zeyingz/vmsketch-insert-throughput:v0.0.2
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker8
+    ports:
+      - 8582
+      - 8500
+      - 8501
+    command:
+      - "--testWindowSize=1000000"
+      - "--testAlgo=ehuniv"
+    restart: always
+
+  # vminsert is ingestion frontend. It receives metrics pushed by vmagent,
+  # pre-process them and distributes across configured vmstorage shards.
+  vminsert-1:
+    container_name: vminsert-1
+    image: zeyingz/vminsert-insert-throughput:v0.0.1
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker1
+    depends_on:
+      - "vmstorage-1"
+      - "vmstorage-2"
+      - "vmstorage-3"
+      - "vmstorage-4"
+      - "vmstorage-5"
+      - "vmstorage-6"
+      - "vmstorage-7"
+      - "vmstorage-8"
+      - "vmsketch-1"
+      - "vmsketch-2"
+      - "vmsketch-3"
+      - "vmsketch-4"
+      - "vmsketch-5"
+      - "vmsketch-6"
+      - "vmsketch-7"
+      - "vmsketch-8"
+    command:
+      - "--storageNode=vmstorage-1:8400"
+      - "--storageNode=vmstorage-2:8400"
+      - "--storageNode=vmstorage-3:8400"
+      - "--storageNode=vmstorage-4:8400"
+      - "--storageNode=vmstorage-5:8400"
+      - "--storageNode=vmstorage-6:8400"
+      - "--storageNode=vmstorage-7:8400"
+      - "--storageNode=vmstorage-8:8400"
+      - "--sketchNode=vmsketch-1:8500"
+      - "--sketchNode=vmsketch-2:8500"
+      - "--sketchNode=vmsketch-3:8500"
+      - "--sketchNode=vmsketch-4:8500"
+      - "--sketchNode=vmsketch-5:8500"
+      - "--sketchNode=vmsketch-6:8500"
+      - "--sketchNode=vmsketch-7:8500"
+      - "--sketchNode=vmsketch-8:8500"
+    ports:
+      - 8480
+    restart: always
+  vminsert-2:
+    container_name: vminsert-2
+    image: zeyingz/vminsert-insert-throughput:v0.0.1
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker3
+    depends_on:
+      - "vmstorage-1"
+      - "vmstorage-2"
+      - "vmstorage-3"
+      - "vmstorage-4"
+      - "vmstorage-5"
+      - "vmstorage-6"
+      - "vmstorage-7"
+      - "vmstorage-8"
+      - "vmsketch-1"
+      - "vmsketch-2"
+      - "vmsketch-3"
+      - "vmsketch-4"
+      - "vmsketch-5"
+      - "vmsketch-6"
+      - "vmsketch-7"
+      - "vmsketch-8"
+    command:
+      - "--storageNode=vmstorage-1:8400"
+      - "--storageNode=vmstorage-2:8400"
+      - "--storageNode=vmstorage-3:8400"
+      - "--storageNode=vmstorage-4:8400"
+      - "--storageNode=vmstorage-5:8400"
+      - "--storageNode=vmstorage-6:8400"
+      - "--storageNode=vmstorage-7:8400"
+      - "--storageNode=vmstorage-8:8400"
+      - "--sketchNode=vmsketch-1:8500"
+      - "--sketchNode=vmsketch-2:8500"
+      - "--sketchNode=vmsketch-3:8500"
+      - "--sketchNode=vmsketch-4:8500"
+      - "--sketchNode=vmsketch-5:8500"
+      - "--sketchNode=vmsketch-6:8500"
+      - "--sketchNode=vmsketch-7:8500"
+      - "--sketchNode=vmsketch-8:8500"
+    ports:
+      - 8480
+    restart: always
+  vminsert-3:
+    container_name: vminsert-3
+    image: zeyingz/vminsert-insert-throughput:v0.0.1
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker5
+    depends_on:
+      - "vmstorage-1"
+      - "vmstorage-2"
+      - "vmstorage-3"
+      - "vmstorage-4"
+      - "vmstorage-5"
+      - "vmstorage-6"
+      - "vmstorage-7"
+      - "vmstorage-8"
+      - "vmsketch-1"
+      - "vmsketch-2"
+      - "vmsketch-3"
+      - "vmsketch-4"
+      - "vmsketch-5"
+      - "vmsketch-6"
+      - "vmsketch-7"
+      - "vmsketch-8"
+    command:
+      - "--storageNode=vmstorage-1:8400"
+      - "--storageNode=vmstorage-2:8400"
+      - "--storageNode=vmstorage-3:8400"
+      - "--storageNode=vmstorage-4:8400"
+      - "--storageNode=vmstorage-5:8400"
+      - "--storageNode=vmstorage-6:8400"
+      - "--storageNode=vmstorage-7:8400"
+      - "--storageNode=vmstorage-8:8400"
+      - "--sketchNode=vmsketch-1:8500"
+      - "--sketchNode=vmsketch-2:8500"
+      - "--sketchNode=vmsketch-3:8500"
+      - "--sketchNode=vmsketch-4:8500"
+      - "--sketchNode=vmsketch-5:8500"
+      - "--sketchNode=vmsketch-6:8500"
+      - "--sketchNode=vmsketch-7:8500"
+      - "--sketchNode=vmsketch-8:8500"
+    ports:
+      - 8480
+    restart: always
+  vminsert-4:
+    container_name: vminsert-4
+    image: zeyingz/vminsert-insert-throughput:v0.0.1
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker7
+    depends_on:
+      - "vmstorage-1"
+      - "vmstorage-2"
+      - "vmstorage-3"
+      - "vmstorage-4"
+      - "vmstorage-5"
+      - "vmstorage-6"
+      - "vmstorage-7"
+      - "vmstorage-8"
+      - "vmsketch-1"
+      - "vmsketch-2"
+      - "vmsketch-3"
+      - "vmsketch-4"
+      - "vmsketch-5"
+      - "vmsketch-6"
+      - "vmsketch-7"
+      - "vmsketch-8"
+    command:
+      - "--storageNode=vmstorage-1:8400"
+      - "--storageNode=vmstorage-2:8400"
+      - "--storageNode=vmstorage-3:8400"
+      - "--storageNode=vmstorage-4:8400"
+      - "--storageNode=vmstorage-5:8400"
+      - "--storageNode=vmstorage-6:8400"
+      - "--storageNode=vmstorage-7:8400"
+      - "--storageNode=vmstorage-8:8400"
+      - "--sketchNode=vmsketch-1:8500"
+      - "--sketchNode=vmsketch-2:8500"
+      - "--sketchNode=vmsketch-3:8500"
+      - "--sketchNode=vmsketch-4:8500"
+      - "--sketchNode=vmsketch-5:8500"
+      - "--sketchNode=vmsketch-6:8500"
+      - "--sketchNode=vmsketch-7:8500"
+      - "--sketchNode=vmsketch-8:8500"
+    ports:
+      - 8480
+    restart: always
+ 
+volumes:
+  vmagentdata-1: {}
+  vmagentdata-2: {}
+  vmagentdata-3: {}
+  vmagentdata-4: {}
+  strgdata-1: {}
+  strgdata-2: {}
+  strgdata-3: {}
+  strgdata-4: {}
+  strgdata-5: {}
+  strgdata-6: {}
+  strgdata-7: {}
+  strgdata-8: {}
+  
