@@ -16,7 +16,7 @@ services:
       - 8429
     volumes:
       - vmagentdata-1:/vmagentdata
-      - ./prometheus-cluster-vmagent-1.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus-cluster.yml:/etc/prometheus/prometheus.yml
     command:
       - "--promscrape.config=/etc/prometheus/prometheus.yml"
       - "--remoteWrite.url=http://vminsert-1:8480/insert/0/prometheus/"
@@ -40,7 +40,7 @@ services:
       - 8429
     volumes:
       - vmagentdata-2:/vmagentdata
-      - ./prometheus-cluster-vmagent-2.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus-cluster.yml:/etc/prometheus/prometheus.yml
     command:
       - "--promscrape.config=/etc/prometheus/prometheus.yml"
       - "--remoteWrite.url=http://vminsert-1:8480/insert/0/prometheus/"
@@ -75,7 +75,7 @@ services:
     deploy:
       placement:
         constraints: 
-          - node.labels.role == worker
+          - node.labels.role == worker2
     ports:
       - 8482
       - 8400
@@ -93,7 +93,7 @@ services:
     deploy:
       placement:
         constraints: 
-          - node.labels.role == datasource
+          - node.labels.role == worker3
     ports:
       - 8482
       - 8400
@@ -109,7 +109,7 @@ services:
     deploy:
       placement:
         constraints: 
-          - node.labels.role == worker
+          - node.labels.role == worker4
     ports:
       - 8482
       - 8400
@@ -143,7 +143,7 @@ services:
     deploy:
       placement:
         constraints: 
-          - node.labels.role == worker
+          - node.labels.role == worker2
     ports:
       - 8582
       - 8500
@@ -158,7 +158,7 @@ services:
     deploy:
       placement:
         constraints: 
-          - node.labels.role == datasource
+          - node.labels.role == worker3
     ports:
       - 8582
       - 8500
@@ -173,7 +173,7 @@ services:
     deploy:
       placement:
         constraints: 
-          - node.labels.role == worker
+          - node.labels.role == worker4
     ports:
       - 8582
       - 8500
