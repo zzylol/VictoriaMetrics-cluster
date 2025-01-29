@@ -49,6 +49,7 @@ import (
 )
 
 var (
+	testStartSeriesID =flag.Int("testStartSeriesID", 0, "start timeseries ID for this vmagent")
 	testInsertNodeNum = flag.Int("testInsertNodeNum", 1, "Number of vminsert nodes")
 	testTimeseriesNum = flag.Int("testTimeseriesNum", 10000, "Number of timeseries for insertion throughput test")
 	testSampleLength  = flag.Int("testSampleLength", 20000, "Length of number of samples")
@@ -162,7 +163,7 @@ func main() {
 
 	// go httpserver.Serve(listenAddrs, useProxyProtocol, requestHandler)
 	// logger.Infof("started vmagent in %.3f seconds", time.Since(startTime).Seconds())
-	total_ops, duration, insert_throughput := promremotewrite.InsertTest(*testTimeseriesNum, *testInsertNodeNum, *testSampleLength)
+	total_ops, duration, insert_throughput := promremotewrite.InsertTest(*testTimeseriesNum, *testStartSeriesID, *testInsertNodeNum, *testSampleLength)
 	logger.Infof("Insertion Throughput test: total_ops=%f (samples), duration=%f(s), insert_throughput=%f (samples/s)", total_ops, duration, insert_throughput)
 
 	pushmetrics.Init()

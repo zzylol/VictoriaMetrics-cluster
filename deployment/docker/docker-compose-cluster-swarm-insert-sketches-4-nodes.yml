@@ -4,45 +4,51 @@ services:
   #  And forward them to --remoteWrite.url
   vmagent-1:
     container_name: vmagent-1
-    image: zeyingz/vmagent-insert-throughput:v0.0.2
+    image: zeyingz/vmagent-insert-throughput:v0.0.3
     deploy:
       placement:
         constraints: 
           - node.labels.role == datasource
     depends_on:
-      - "vminsert"
+      - "vminsert-1"
+      - "vminsert-2"
     ports:
       - 8429
     volumes:
-      - vmagentdata:/vmagentdata
-      - ./prometheus-cluster.yml:/etc/prometheus/prometheus.yml
+      - vmagentdata-1:/vmagentdata
+      - ./prometheus-cluster-vmagent-1.yml:/etc/prometheus/prometheus.yml
     command:
       - "--promscrape.config=/etc/prometheus/prometheus.yml"
-      - "--remoteWrite.url=http://vminsert:8480/insert/0/prometheus/"
+      - "--remoteWrite.url=http://vminsert-1:8480/insert/0/prometheus/"
+      - "--remoteWrite.url=http://vminsert-2:8480/insert/0/prometheus/"
       - "--testSampleLength=2160000"
       - "--testTimeseriesNum=10000"
-      - "--testInsertNodeNum=1"
+      - "--testStartSeriesID=0"
+      - "--testInsertNodeNum=2"
     restart: always
   vmagent-2:
     container_name: vmagent-2
-    image: zeyingz/vmagent-insert-throughput:v0.0.2
+    image: zeyingz/vmagent-insert-throughput:v0.0.3
     deploy:
       placement:
         constraints: 
-          - node.labels.role == worker2
+          - node.labels.role == worker3
     depends_on:
-      - "vminsert"
+      - "vminsert-1"
+      - "vminsert-2"
     ports:
       - 8429
     volumes:
-      - vmagentdata:/vmagentdata
-      - ./prometheus-cluster.yml:/etc/prometheus/prometheus.yml
+      - vmagentdata-2:/vmagentdata
+      - ./prometheus-cluster-vmagent-2.yml:/etc/prometheus/prometheus.yml
     command:
       - "--promscrape.config=/etc/prometheus/prometheus.yml"
-      - "--remoteWrite.url=http://vminsert:8480/insert/0/prometheus/"
+      - "--remoteWrite.url=http://vminsert-1:8480/insert/0/prometheus/"
+      - "--remoteWrite.url=http://vminsert-2:8480/insert/0/prometheus/"
       - "--testSampleLength=2160000"
       - "--testTimeseriesNum=10000"
-      - "--testInsertNodeNum=1"
+      - "--testStartSeriesID=10000"
+      - "--testInsertNodeNum=2"
     restart: always
 
   # vmstorage shards. Each shard receives 1/N of all metrics sent to vminserts,
@@ -213,7 +219,7 @@ services:
     deploy:
       placement:
         constraints: 
-          - node.labels.role == worker2
+          - node.labels.role == worker3
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -237,7 +243,8 @@ services:
     restart: always
  
 volumes:
-  vmagentdata: {}
+  vmagentdata-1: {}
+  vmagentdata-2: {}
   strgdata-1: {}
   strgdata-2: {}
   strgdata-3: {}

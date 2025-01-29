@@ -83,14 +83,14 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 	return nil
 }
 
-func InsertTest(testTimeseriesNum, testInsertNodeNum, testSampleLength int) (float64, float64, float64) {
+func InsertTest(testTimeseriesNum, testStartSeriesID, testInsertNodeNum, testSampleLength int) (float64, float64, float64) {
 
 	timeseries := make([]prompb.TimeSeries, testTimeseriesNum)
 	total_time_length := testSampleLength
 	var total_ops float64 = 0
 
 	for j := 0; j < testTimeseriesNum; j++ {
-		fakeMetric := "machine" + strconv.Itoa(j)
+		fakeMetric := "machine" + strconv.Itoa(testStartSeriesID+j)
 		timeseries[j].Labels = make([]prompb.Label, 1)
 		timeseries[j].Labels[0].Name = "fake_metric"
 		timeseries[j].Labels[0].Value = fakeMetric
@@ -100,7 +100,7 @@ func InsertTest(testTimeseriesNum, testInsertNodeNum, testSampleLength int) (flo
 
 	timeDelta := int64(100)
 	scrapeCountBatch := 100
-	lbl_batch := testInsertNodeNum
+	lbl_batch := 100
 	start := time.Now()
 	for time_idx := 0; time_idx < total_time_length; time_idx += scrapeCountBatch {
 		var wg sync.WaitGroup
