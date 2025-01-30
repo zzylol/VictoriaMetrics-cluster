@@ -26,7 +26,7 @@ services:
       - "--remoteWrite.url=http://vminsert-3:8480/insert/0/prometheus/"
       - "--remoteWrite.url=http://vminsert-4:8480/insert/0/prometheus/"
       - "--testSampleLength=2160000"
-      - "--testTimeseriesNum=10000"
+      - "--testTimeseriesNum=5000"
       - "--testStartSeriesID=0"
       - "--testInsertNodeNum=4"
     restart: always
@@ -54,7 +54,7 @@ services:
       - "--remoteWrite.url=http://vminsert-3:8480/insert/0/prometheus/"
       - "--remoteWrite.url=http://vminsert-4:8480/insert/0/prometheus/"
       - "--testSampleLength=2160000"
-      - "--testTimeseriesNum=10000"
+      - "--testTimeseriesNum=5000"
       - "--testStartSeriesID=10000"
       - "--testInsertNodeNum=4"
     restart: always
@@ -82,7 +82,7 @@ services:
       - "--remoteWrite.url=http://vminsert-3:8480/insert/0/prometheus/"
       - "--remoteWrite.url=http://vminsert-4:8480/insert/0/prometheus/"
       - "--testSampleLength=2160000"
-      - "--testTimeseriesNum=10000"
+      - "--testTimeseriesNum=5000"
       - "--testStartSeriesID=20000"
       - "--testInsertNodeNum=4"
     restart: always
@@ -110,7 +110,7 @@ services:
       - "--remoteWrite.url=http://vminsert-3:8480/insert/0/prometheus/"
       - "--remoteWrite.url=http://vminsert-4:8480/insert/0/prometheus/"
       - "--testSampleLength=2160000"
-      - "--testTimeseriesNum=10000"
+      - "--testTimeseriesNum=5000"
       - "--testStartSeriesID=30000"
       - "--testInsertNodeNum=4"
     restart: always
