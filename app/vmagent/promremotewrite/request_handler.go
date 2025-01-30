@@ -141,7 +141,7 @@ func InsertTest(testTimeseriesNum, testStartSeriesID, testInsertNodeNum, testSam
 					samplesLen := len(samples)
 					for j := 0; j < scrapeCountBatch; j++ {
 						ts += timeDelta
-						rowsTotal += scrapeCountBatch
+						rowsTotal += 1
 						samples = append(samples, prompbmarshal.Sample{
 							Timestamp: ts,
 							Value:     float64(z.Uint64()),
