@@ -172,14 +172,15 @@ Docker-compose version: >= 2.0 (install latest)
 
 Add label meatadata to the datasource node
 ```
-sudo docker node update --label-add role=datasource "hostname of node"
+sudo docker node update --label-add role=worker1 "hostname of node"
 sudo docker node inspect self --pretty
 ```
 
 Start stack in manager node
 ```
-sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-sketches.yml stackdemo
+sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-sketches-2-nodes.yml stackdemo
 sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-sketches-4-nodes.yml stackdemo
+sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-sketches-8-nodes.yml stackdemo
 ```
 
 Show status
