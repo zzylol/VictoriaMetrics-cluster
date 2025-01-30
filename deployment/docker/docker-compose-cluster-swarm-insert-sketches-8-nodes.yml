@@ -4,7 +4,7 @@ services:
   #  And forward them to --remoteWrite.url
   vmagent-1:
     container_name: vmagent-1
-    image: zeyingz/vmagent-insert-throughput:v0.0.4
+    image: zeyingz/vmagent-insert-throughput:v0.0.5
     deploy:
       placement:
         constraints: 
@@ -32,7 +32,7 @@ services:
     restart: always
   vmagent-2:
     container_name: vmagent-2
-    image: zeyingz/vmagent-insert-throughput:v0.0.4
+    image: zeyingz/vmagent-insert-throughput:v0.0.5
     deploy:
       placement:
         constraints: 
@@ -60,7 +60,7 @@ services:
     restart: always
   vmagent-3:
     container_name: vmagent-3
-    image: zeyingz/vmagent-insert-throughput:v0.0.4
+    image: zeyingz/vmagent-insert-throughput:v0.0.5
     deploy:
       placement:
         constraints: 
@@ -88,7 +88,7 @@ services:
     restart: always
   vmagent-4:
     container_name: vmagent-4
-    image: zeyingz/vmagent-insert-throughput:v0.0.4
+    image: zeyingz/vmagent-insert-throughput:v0.0.5
     deploy:
       placement:
         constraints: 
