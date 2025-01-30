@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
@@ -87,7 +88,8 @@ func InsertTest(testTimeseriesNum, testStartSeriesID, testInsertNodeNum, testSam
 
 	timeseries := make([]prompb.TimeSeries, testTimeseriesNum)
 	total_time_length := testSampleLength
-	var total_ops float64 = 0
+	var total_ops atomic.Int64
+	total_ops.Store(0)
 
 	for j := 0; j < testTimeseriesNum; j++ {
 		fakeMetric := "machine" + strconv.Itoa(testStartSeriesID+j)
@@ -155,7 +157,7 @@ func InsertTest(testTimeseriesNum, testStartSeriesID, testInsertNodeNum, testSam
 				ctx.Labels = labels
 				ctx.Samples = samples
 				if remotewrite.TryPush(nil, &ctx.WriteRequest) {
-					total_ops += float64(rowsTotal)
+					total_ops.Add(int64(rowsTotal))
 				}
 
 			}()
@@ -163,6 +165,6 @@ func InsertTest(testTimeseriesNum, testStartSeriesID, testInsertNodeNum, testSam
 		wg.Wait()
 	}
 	duration := float64(time.Since(start).Seconds())
-	throughput := total_ops / duration
-	return total_ops, duration, throughput
+	throughput := float64(total_ops.Load()) / duration
+	return float64(total_ops.Load()), duration, throughput
 }
