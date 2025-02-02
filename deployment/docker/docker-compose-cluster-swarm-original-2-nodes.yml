@@ -8,7 +8,7 @@ services:
     deploy:
       placement:
         constraints: 
-          - node.labels.role == datasource
+          - node.labels.role == worker1
     depends_on:
       - "vminsert"
     ports:
@@ -47,7 +47,7 @@ services:
     deploy:
       placement:
         constraints: 
-          - node.labels.role == datasource
+          - node.labels.role == worker1
     ports:
       - 8482
       - 8400
@@ -82,7 +82,7 @@ services:
     deploy:
       placement:
         constraints: 
-          - node.labels.role == datasource
+          - node.labels.role == worker1
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -101,7 +101,7 @@ services:
     deploy:
       placement:
         constraints: 
-          - node.labels.role == datasource
+          - node.labels.role == worker1
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
