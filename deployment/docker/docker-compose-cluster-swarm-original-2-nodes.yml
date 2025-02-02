@@ -63,7 +63,7 @@ services:
     deploy:
       placement:
         constraints: 
-          - node.labels.role == worker
+          - node.labels.role == worker2
     ports:
       - 8482
       - 8400
@@ -120,7 +120,7 @@ services:
     deploy:
       placement:
         constraints: 
-          - node.labels.role == worker
+          - node.labels.role == worker2
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
