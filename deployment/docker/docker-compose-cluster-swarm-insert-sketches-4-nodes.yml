@@ -134,8 +134,8 @@ services:
       - 8500
       - 8501
     command:
-      - "--testWindowSize=100000"
-      - "--testAlgo=sampling"
+      - "--testWindowSize=10000"
+      - "--testAlgo=ehkll"
     restart: always
   vmsketch-2:
     container_name: vmsketch-2
@@ -149,8 +149,8 @@ services:
       - 8500
       - 8501
     command:
-      - "--testWindowSize=100000"
-      - "--testAlgo=sampling"
+      - "--testWindowSize=10000"
+      - "--testAlgo=ehkll"
     restart: always
   vmsketch-3:
     container_name: vmsketch-3
@@ -164,8 +164,8 @@ services:
       - 8500
       - 8501
     command:
-      - "--testWindowSize=100000"
-      - "--testAlgo=sampling"
+      - "--testWindowSize=10000"
+      - "--testAlgo=ehkll"
     restart: always
   vmsketch-4:
     container_name: vmsketch-4
@@ -179,8 +179,8 @@ services:
       - 8500
       - 8501
     command:
-      - "--testWindowSize=100000"
-      - "--testAlgo=sampling"
+      - "--testWindowSize=10000"
+      - "--testAlgo=ehkll"
     restart: always
 
   # vminsert is ingestion frontend. It receives metrics pushed by vmagent,
