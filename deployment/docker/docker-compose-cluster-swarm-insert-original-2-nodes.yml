@@ -4,11 +4,11 @@ services:
   #  And forward them to --remoteWrite.url
   vmagent:
     container_name: vmagent
-    image: zeyingz/vmagent-insert-throughput:v0.0.1
+    image: zeyingz/vmagent-insert-throughput:v0.0.5
     deploy:
       placement:
         constraints: 
-          - node.labels.role == datasource
+          - node.labels.role == worker1
     depends_on:
       - "vminsert"
     ports:
@@ -33,7 +33,7 @@ services:
     deploy:
       placement:
         constraints: 
-          - node.labels.role == datasource
+          - node.labels.role == worker1
     ports:
       - 8482
       - 8400
@@ -59,16 +59,17 @@ services:
     command:
       - "--storageDataPath=/storage"
     restart: always
-
+  
+  
   # vminsert is ingestion frontend. It receives metrics pushed by vmagent,
   # pre-process them and distributes across configured vmstorage shards.
   vminsert:
     container_name: vminsert
-    image: zeyingz/vminsert-insert-throughput:v0.0.1
+    image: victoriametrics/vminsert:v1.108.1-cluster 
     deploy:
       placement:
         constraints: 
-          - node.labels.role == datasource
+          - node.labels.role == worker1
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -83,5 +84,4 @@ volumes:
   vmagentdata: {}
   strgdata-1: {}
   strgdata-2: {}
-  
   

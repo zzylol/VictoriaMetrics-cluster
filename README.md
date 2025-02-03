@@ -183,6 +183,10 @@ sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster
 sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-sketches-8-nodes.yml stackdemo
 ```
 
+```
+sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-original-2-nodes.yml stackdemo
+```
+
 Show status
 ```
 sudo docker stack services stackdemo
