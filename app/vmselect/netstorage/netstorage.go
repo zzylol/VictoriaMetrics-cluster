@@ -2919,7 +2919,7 @@ const maxMetricBlockSize = 1024 * 1024
 
 // maxErrorMessageSize is the maximum size of error message received
 // from vmstorage.
-const maxErrorMessageSize = 64 * 1024
+const maxErrorMessageSize = 1024 * 1024
 
 // maxEvalResultSize is the maximum size of evalResult received from vmsketch.
 const maxEvalResultSize = 1024 * 1024
