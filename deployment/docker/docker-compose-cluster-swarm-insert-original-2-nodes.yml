@@ -20,7 +20,7 @@ services:
       - "--promscrape.config=/etc/prometheus/prometheus.yml"
       - "--remoteWrite.url=http://vminsert:8480/insert/0/prometheus/"
       - "--testSampleLength=2160000"
-      - "--testTimeseriesNum=10000"
+      - "--testTimeseriesNum=20000"
       - "--testInsertNodeNum=1"
     restart: always
  
@@ -49,7 +49,7 @@ services:
     deploy:
       placement:
         constraints: 
-          - node.labels.role == worker
+          - node.labels.role == worker2
     ports:
       - 8482
       - 8400
