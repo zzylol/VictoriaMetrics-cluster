@@ -61,6 +61,23 @@ services:
       - "--storageDataPath=/storage"
       - "--retentionPeriod=100y"
     restart: always
+    vmstorage-3:
+    container_name: vmstorage-3
+    image: victoriametrics/vmstorage:v1.108.1-cluster 
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker3
+    ports:
+      - 8482
+      - 8400
+      - 8401
+    volumes:
+      - strgdata-3:/storage
+    command:
+      - "--storageDataPath=/storage"
+      - "--retentionPeriod=100y"
+    restart: always
   
   
   # vminsert is ingestion frontend. It receives metrics pushed by vmagent,
@@ -75,9 +92,11 @@ services:
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
+      - "vmstorage-3"
     command:
       - "--storageNode=vmstorage-1:8400"
       - "--storageNode=vmstorage-2:8400"
+      - "--storageNode=vmstorage-3:8400"
     ports:
       - 8480
     restart: always
@@ -86,4 +105,5 @@ volumes:
   vmagentdata: {}
   strgdata-1: {}
   strgdata-2: {}
+  strgdata-3: {}
   
