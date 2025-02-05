@@ -104,6 +104,7 @@ func InsertTest(testTimeseriesNum, testStartSeriesID, testInsertNodeNum, testSam
 	scrapeCountBatch := 100
 	lbl_batch := 100
 	start := time.Now()
+	time_base := time.Now().Unix()
 	for time_idx := 0; time_idx < total_time_length; time_idx += scrapeCountBatch {
 		var wg sync.WaitGroup
 		tss := timeseries
@@ -137,7 +138,7 @@ func InsertTest(testTimeseriesNum, testStartSeriesID, testInsertNodeNum, testSam
 					labelsLen := len(labels)
 					labels = append(labels, prompbmarshal.Label(batch[i].Labels[0]))
 					// create samples
-					ts := timeDelta * int64(time_idx)
+					ts := timeDelta*int64(time_idx) + time_base
 					samplesLen := len(samples)
 					for j := 0; j < scrapeCountBatch; j++ {
 						ts += timeDelta
