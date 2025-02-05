@@ -144,7 +144,7 @@ func InsertTest(testTimeseriesNum, testStartSeriesID, testInsertNodeNum, testSam
 						ts += timeDelta
 						rowsTotal += 1
 						samples = append(samples, prompbmarshal.Sample{
-							Timestamp: ts * 100, // change to ms unit
+							Timestamp: ts * 1000, // change to ms unit
 							Value:     float64(z.Uint64()),
 						})
 					}
