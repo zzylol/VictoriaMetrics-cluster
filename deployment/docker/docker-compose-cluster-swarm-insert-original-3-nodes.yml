@@ -4,7 +4,7 @@ services:
   #  And forward them to --remoteWrite.url
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:heads-insertion_throughput-0-g6905581-dirty-abc8a3c4
+    image: zeyingz/vmagent-insert-throughput:v0.0.10
     deploy:
       placement:
         constraints: 
@@ -61,7 +61,7 @@ services:
       - "--storageDataPath=/storage"
       - "--retentionPeriod=100y"
     restart: always
-    vmstorage-3:
+  vmstorage-3:
     container_name: vmstorage-3
     image: victoriametrics/vmstorage:v1.108.1-cluster 
     deploy:
