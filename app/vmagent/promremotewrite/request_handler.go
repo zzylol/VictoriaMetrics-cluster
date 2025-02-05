@@ -104,7 +104,7 @@ func InsertTest(testTimeseriesNum, testStartSeriesID, testInsertNodeNum, testSam
 	scrapeCountBatch := 100
 	lbl_batch := 100
 	start := time.Now()
-	time_base := time.Now().Unix()
+	time_base := time.Now().AddDate(0, -1, 0).Unix()
 	for time_idx := 0; time_idx < total_time_length; time_idx += scrapeCountBatch {
 		var wg sync.WaitGroup
 		tss := timeseries

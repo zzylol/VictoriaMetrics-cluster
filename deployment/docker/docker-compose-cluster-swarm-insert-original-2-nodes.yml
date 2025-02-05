@@ -4,7 +4,7 @@ services:
   #  And forward them to --remoteWrite.url
   vmagent:
     container_name: vmagent
-    image: zeyingz/vmagent-insert-throughput:v0.0.7
+    image: zeyingz/vmagent-insert-throughput:v0.0.9
     deploy:
       placement:
         constraints: 
@@ -42,6 +42,7 @@ services:
       - strgdata-1:/storage
     command:
       - "--storageDataPath=/storage"
+      - "--retentionPeriod=100y"
     restart: always
   vmstorage-2:
     container_name: vmstorage-2
@@ -58,6 +59,7 @@ services:
       - strgdata-2:/storage
     command:
       - "--storageDataPath=/storage"
+      - "--retentionPeriod=100y"
     restart: always
   
   
