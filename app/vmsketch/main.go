@@ -24,6 +24,7 @@ import (
 )
 
 var (
+	throughput_test_threshold = flag.Int64("throughput_test_threshold", 2160000*10000, "The sample threshold for throughput test")
 	testWindowSize   = flag.Int("testWindowSize", 10000, "Window size")
 	testAlgo         = flag.String("testAlgo", "sampling", "promsketch algorithm tested")
 	httpListenAddrs  = flagutil.NewArrayString("httpListenAddr", "Address to listen for incoming http requests. See also -httpListenAddr.useProxyProtocol")
@@ -110,6 +111,10 @@ func main() {
 	if len(listenAddrs) == 0 {
 		listenAddrs = []string{":8582"}
 	}
+
+	vminsertSrv.Throughput_test_threshold = *throughput_test_threshold
+	vminsertSrv.Throughput_start_time = time.Now()
+
 	requestHandler := newRequestHandler(sketch)
 	go httpserver.Serve(listenAddrs, useProxyProtocol, requestHandler)
 

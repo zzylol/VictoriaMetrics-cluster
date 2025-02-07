@@ -47,6 +47,9 @@ type VMInsertServer struct {
 
 	// stopFlag is set to true when the server needs to stop.
 	stopFlag atomic.Bool
+
+	Throughput_start_time     time.Time
+	Throughput_test_threshold int64
 }
 
 // NewVMInsertServer starts VMInsertServer at the given addr serving the given sketch.
@@ -126,6 +129,12 @@ func (s *VMInsertServer) run() {
 			err = stream.Parse(bc, func(rows []storage.MetricRow) error {
 				vminsertMetricsRead.Add(len(rows))
 				s.sketch.AddRows(rows)
+
+				if vminsertMetricsRead.Get() >= uint64(s.Throughput_test_threshold) {
+					throughput_end_time := time.Now()
+					throughput := float64(vminsertMetricsRead.Get()) / throughput_end_time.Sub(s.Throughput_start_time).Seconds()
+					logger.Infof("vminsert to vmsketch throughput: %.6f samples/sec", throughput)
+				}
 				return nil
 			}, s.sketch.IsReadOnly)
 			logger.Infof("after stream.Parse")

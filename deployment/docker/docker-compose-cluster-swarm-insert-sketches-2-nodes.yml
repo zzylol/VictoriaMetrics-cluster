@@ -4,11 +4,11 @@ services:
   #  And forward them to --remoteWrite.url
   vmagent:
     container_name: vmagent
-    image: zeyingz/vmagent-insert-throughput:v0.0.5
+    image: zeyingz/vmagent-insert-throughput:v0.0.10
     deploy:
       placement:
         constraints: 
-          - node.labels.role == datasource
+          - node.labels.role == worker1
     depends_on:
       - "vminsert"
     ports:
@@ -20,7 +20,7 @@ services:
       - "--promscrape.config=/etc/prometheus/prometheus.yml"
       - "--remoteWrite.url=http://vminsert:8480/insert/0/prometheus/"
       - "--testSampleLength=2160000"
-      - "--testTimeseriesNum=10000"
+      - "--testTimeseriesNum=80000"
       - "--testInsertNodeNum=1"
     restart: always
  
@@ -29,11 +29,11 @@ services:
   # where N is number of vmstorages (2 in this case).
   vmstorage-1:
     container_name: vmstorage-1
-    image: victoriametrics/vmstorage:v1.108.1-cluster 
+    image: zeyingz/vmstorage-insert-throughput:v0.0.1
     deploy:
       placement:
         constraints: 
-          - node.labels.role == datasource
+          - node.labels.role == worker1
     ports:
       - 8482
       - 8400
@@ -42,14 +42,16 @@ services:
       - strgdata-1:/storage
     command:
       - "--storageDataPath=/storage"
+      - "--retentionPeriod=100y"
+      - "--throughput_test_threshold=80000000000"
     restart: always
   vmstorage-2:
     container_name: vmstorage-2
-    image: victoriametrics/vmstorage:v1.108.1-cluster 
+    image: zeyingz/vmstorage-insert-throughput:v0.0.1
     deploy:
       placement:
         constraints: 
-          - node.labels.role == worker
+          - node.labels.role == worker2
     ports:
       - 8482
       - 8400
@@ -58,17 +60,19 @@ services:
       - strgdata-2:/storage
     command:
       - "--storageDataPath=/storage"
+      - "--retentionPeriod=100y"
+      - "--throughput_test_threshold=80000000000"
     restart: always
   
   # vmsketch shards. Each shard receives 1/N of all metrics sent to vminserts,
   # where N is number of vmsketches (2 in this case).
   vmsketch-1:
     container_name: vmsketch-1
-    image: zeyingz/vmsketch-insert-throughput:v0.0.2
+    image: zeyingz/vmsketch-insert-throughput:v0.0.3
     deploy:
       placement:
         constraints: 
-          - node.labels.role == datasource
+          - node.labels.role == worker1
     ports:
       - 8582
       - 8500
@@ -76,14 +80,15 @@ services:
     command:
       - "--testWindowSize=1000000"
       - "--testAlgo=ehuniv"
+      - "--throughput_test_threshold=80000000000"
     restart: always
   vmsketch-2:
     container_name: vmsketch-2
-    image: zeyingz/vmsketch-insert-throughput:v0.0.2
+    image: zeyingz/vmsketch-insert-throughput:v0.0.3
     deploy:
       placement:
         constraints: 
-          - node.labels.role == worker
+          - node.labels.role == worker2
     ports:
       - 8582
       - 8500
@@ -91,6 +96,7 @@ services:
     command:
       - "--testWindowSize=1000000"
       - "--testAlgo=ehuniv"
+      - "--throughput_test_threshold=80000000000"
     restart: always
 
   # vminsert is ingestion frontend. It receives metrics pushed by vmagent,
@@ -101,7 +107,7 @@ services:
     deploy:
       placement:
         constraints: 
-          - node.labels.role == datasource
+          - node.labels.role == worker1
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
