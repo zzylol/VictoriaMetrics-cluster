@@ -20,7 +20,7 @@ services:
       - "--promscrape.config=/etc/prometheus/prometheus.yml"
       - "--remoteWrite.url=http://vminsert:8480/insert/0/prometheus/"
       - "--testSampleLength=2160000"
-      - "--testTimeseriesNum=10000"
+      - "--testTimeseriesNum=20000"
       - "--testInsertNodeNum=1"
     restart: always
  
@@ -74,8 +74,8 @@ services:
       - 8500
       - 8501
     command:
-      - "--testWindowSize=1000000"
-      - "--testAlgo=ehuniv"
+      - "--testWindowSize=100000"
+      - "--testAlgo=sampling"
     restart: always
   vmsketch-2:
     container_name: vmsketch-2
@@ -89,8 +89,8 @@ services:
       - 8500
       - 8501
     command:
-      - "--testWindowSize=1000000"
-      - "--testAlgo=ehuniv"
+      - "--testWindowSize=100000"
+      - "--testAlgo=sampling"
     restart: always
 
   # vminsert is ingestion frontend. It receives metrics pushed by vmagent,
