@@ -179,13 +179,27 @@ sudo docker node inspect self --pretty
 Start stack in manager node
 ```
 sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-sketches-2-nodes.yml stackdemo
+sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-sketches-3-nodes.yml stackdemo
 sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-sketches-4-nodes.yml stackdemo
 sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-sketches-8-nodes.yml stackdemo
+```
+
+```
+sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-original-2-nodes.yml stackdemo
+
+sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-original-3-nodes.yml stackdemo
+
+sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-original-4-nodes.yml stackdemo
+
+sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-original-8-nodes.yml stackdemo
 ```
 
 Show status
 ```
 sudo docker stack services stackdemo
+sudo docker service logs stackdemo_vmagent
+sudo docker service logs stackdemo_vmstorage-1
+sudo docker service logs stackdemo_vmstorage-2
 ```
 
 Debug not started cluster service

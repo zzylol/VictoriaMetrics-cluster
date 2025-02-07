@@ -49,7 +49,7 @@ import (
 )
 
 var (
-	testStartSeriesID =flag.Int("testStartSeriesID", 0, "start timeseries ID for this vmagent")
+	testStartSeriesID = flag.Int("testStartSeriesID", 0, "start timeseries ID for this vmagent")
 	testInsertNodeNum = flag.Int("testInsertNodeNum", 1, "Number of vminsert nodes")
 	testTimeseriesNum = flag.Int("testTimeseriesNum", 10000, "Number of timeseries for insertion throughput test")
 	testSampleLength  = flag.Int("testSampleLength", 20000, "Length of number of samples")
