@@ -29,9 +29,10 @@ import (
 )
 
 var (
-	retentionPeriod  = flagutil.NewRetentionDuration("retentionPeriod", "1", "Data with timestamps outside the retentionPeriod is automatically deleted. The minimum retentionPeriod is 24h or 1d. See also -retentionFilter")
-	httpListenAddrs  = flagutil.NewArrayString("httpListenAddr", "Address to listen for incoming http requests. See also -httpListenAddr.useProxyProtocol")
-	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the given -httpListenAddr . "+
+	throughput_test_threshold = flag.Int64("throughput_test_threshold", 2160000*10000, "The sample threshold for throughput test")
+	retentionPeriod           = flagutil.NewRetentionDuration("retentionPeriod", "1", "Data with timestamps outside the retentionPeriod is automatically deleted. The minimum retentionPeriod is 24h or 1d. See also -retentionFilter")
+	httpListenAddrs           = flagutil.NewArrayString("httpListenAddr", "Address to listen for incoming http requests. See also -httpListenAddr.useProxyProtocol")
+	useProxyProtocol          = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the given -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
 	storageDataPath   = flag.String("storageDataPath", "vmstorage-data", "Path to storage data")
@@ -137,6 +138,10 @@ func main() {
 	if len(listenAddrs) == 0 {
 		listenAddrs = []string{":8482"}
 	}
+
+	vminsertSrv.Throughput_test_threshold = *throughput_test_threshold
+	vminsertSrv.Throughput_start_time = time.Now()
+
 	requestHandler := newRequestHandler(strg)
 	go httpserver.Serve(listenAddrs, useProxyProtocol, requestHandler)
 
