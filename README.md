@@ -194,8 +194,9 @@ Show status
 ```
 sudo docker stack services stackdemo
 sudo docker service logs stackdemo_vmagent
-sudo docker service logs stackdemo_vmstorage-1
-sudo docker service logs stackdemo_vmstorage-2
+sudo docker service logs -f --tail 10 stackdemo_vmstorage-1
+sudo docker service logs -f --tail 10 stackdemo_vmstorage-2
+
 
 # Output logs:
 docker service logs stackdemo_vmstorage-1 > storage_1.log 2>&1
