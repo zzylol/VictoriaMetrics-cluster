@@ -402,18 +402,39 @@ func (vs *VMSketches) AddRow(mn *storage.MetricNameNoTenant, t int64, value floa
 		switch testAlgo {
 		case "sampling":
 			funcName = "avg_over_time"
+			err := vs.NewVMSketchCacheInstance(mn, funcName, int64(testWindowSize), int64(testWindowSize/100))
+			if err != nil {
+				return err
+			}
 		case "ehkll":
 			funcName = "quantile_over_time"
+			err := vs.NewVMSketchCacheInstance(mn, funcName, int64(testWindowSize), int64(testWindowSize/100))
+			if err != nil {
+				return err
+			}
 		case "ehuniv":
 			funcName = "entropy_over_time"
+			err := vs.NewVMSketchCacheInstance(mn, funcName, int64(testWindowSize), int64(testWindowSize/100))
+			if err != nil {
+				return err
+			}
 		case "all":
+			err := vs.NewVMSketchCacheInstance(mn, "avg_over_time", int64(testWindowSize), int64(testWindowSize/100))
+			if err != nil {
+				return err
+			}
+			err = vs.NewVMSketchCacheInstance(mn, "quantile_over_time", int64(testWindowSize), int64(testWindowSize/100))
+			if err != nil {
+				return err
+			}
+			err = vs.NewVMSketchCacheInstance(mn, "entropy_over_time", int64(testWindowSize), int64(testWindowSize/100))
+			if err != nil {
+				return err
+			}
 		default:
 			return fmt.Errorf("not supported test algorithm")
 		}
-		err := vs.NewVMSketchCacheInstance(mn, funcName, int64(testWindowSize), int64(testWindowSize/100))
-		if err != nil {
-			return err
-		}
+
 	}
 
 	s = vs.series.getByHash(hash, mn)

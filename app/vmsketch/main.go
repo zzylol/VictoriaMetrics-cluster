@@ -25,10 +25,10 @@ import (
 
 var (
 	throughput_test_threshold = flag.Int64("throughput_test_threshold", 2160000*10000, "The sample threshold for throughput test")
-	testWindowSize   = flag.Int("testWindowSize", 10000, "Window size")
-	testAlgo         = flag.String("testAlgo", "sampling", "promsketch algorithm tested")
-	httpListenAddrs  = flagutil.NewArrayString("httpListenAddr", "Address to listen for incoming http requests. See also -httpListenAddr.useProxyProtocol")
-	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the given -httpListenAddr . "+
+	testWindowSize            = flag.Int("testWindowSize", 10000, "Window size")
+	testAlgo                  = flag.String("testAlgo", "sampling", "promsketch algorithm tested")
+	httpListenAddrs           = flagutil.NewArrayString("httpListenAddr", "Address to listen for incoming http requests. See also -httpListenAddr.useProxyProtocol")
+	useProxyProtocol          = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the given -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
 	vminsertAddr      = flag.String("vminsertAddr", ":8500", "TCP address to accept connections from vminsert services")
