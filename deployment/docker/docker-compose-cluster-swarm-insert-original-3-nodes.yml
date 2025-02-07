@@ -29,7 +29,7 @@ services:
   # where N is number of vmstorages (2 in this case).
   vmstorage-1:
     container_name: vmstorage-1
-    image: victoriametrics/vmstorage:v1.108.1-cluster 
+    image: zeyingz/vmstorage-insert-throughput:v0.0.1
     deploy:
       placement:
         constraints: 
@@ -43,10 +43,11 @@ services:
     command:
       - "--storageDataPath=/storage"
       - "--retentionPeriod=100y"
+      - "--throughput_test_threshold=50000000000"
     restart: always
   vmstorage-2:
     container_name: vmstorage-2
-    image: victoriametrics/vmstorage:v1.108.1-cluster 
+    image: zeyingz/vmstorage-insert-throughput:v0.0.1
     deploy:
       placement:
         constraints: 
@@ -60,10 +61,11 @@ services:
     command:
       - "--storageDataPath=/storage"
       - "--retentionPeriod=100y"
+      - "--throughput_test_threshold=50000000000"
     restart: always
   vmstorage-3:
     container_name: vmstorage-3
-    image: victoriametrics/vmstorage:v1.108.1-cluster 
+    image: zeyingz/vmstorage-insert-throughput:v0.0.1
     deploy:
       placement:
         constraints: 
@@ -77,6 +79,7 @@ services:
     command:
       - "--storageDataPath=/storage"
       - "--retentionPeriod=100y"
+      - "--throughput_test_threshold=50000000000"
     restart: always
   
   
