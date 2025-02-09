@@ -198,7 +198,9 @@ sudo docker service logs stackdemo_vmstorage-1
 sudo docker service logs stackdemo_vmstorage-2
 
 # Output logs:
-docker service logs stackdemo_vmstorage-1 > storage_1.log 2>&1
+sudo docker service logs stackdemo_vmstorage-1 > storage_1.log 2>&1
+sudo docker service logs stackdemo_vmstorage-2 > storage_2.log 2>&1
+sudo docker service logs stackdemo_vmstorage-3 > storage_3.log 2>&1
 ```
 
 Debug not started cluster service

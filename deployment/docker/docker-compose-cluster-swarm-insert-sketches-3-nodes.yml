@@ -20,7 +20,7 @@ services:
       - "--promscrape.config=/etc/prometheus/prometheus.yml"
       - "--remoteWrite.url=http://vminsert:8480/insert/0/prometheus/"
       - "--testSampleLength=1080000"
-      - "--testTimeseriesNum=10000"
+      - "--testTimeseriesNum=20000"
       - "--testInsertNodeNum=1"
     restart: always
  
@@ -43,7 +43,7 @@ services:
     command:
       - "--storageDataPath=/storage"
       - "--retentionPeriod=100y"
-      - "--throughput_test_threshold=2500000000"
+      - "--throughput_test_threshold=5000000000"
     restart: always
   vmstorage-2:
     container_name: vmstorage-2
@@ -61,7 +61,7 @@ services:
     command:
       - "--storageDataPath=/storage"
       - "--retentionPeriod=100y"
-      - "--throughput_test_threshold=2500000000"
+      - "--throughput_test_threshold=5000000000"
     restart: always
   vmstorage-3:
     container_name: vmstorage-3
@@ -79,27 +79,84 @@ services:
     command:
       - "--storageDataPath=/storage"
       - "--retentionPeriod=100y"
-      - "--throughput_test_threshold=2500000000"
+      - "--throughput_test_threshold=5000000000"
     restart: always
   
-  
-  # vminsert is ingestion frontend. It receives metrics pushed by vmagent,
-  # pre-process them and distributes across configured vmstorage shards.
-  vminsert:
-    container_name: vminsert
-    image: victoriametrics/vminsert:v1.108.1-cluster 
+  # vmsketch shards. Each shard receives 1/N of all metrics sent to vminserts,
+  # where N is number of vmsketches (2 in this case).
+  vmsketch-1:
+    container_name: vmsketch-1
+    image: zeyingz/vmsketch-insert-throughput:v0.0.4
     deploy:
       placement:
         constraints: 
           - node.labels.role == worker1
+    ports:
+      - 8582
+      - 8500
+      - 8501
+    command:
+      - "--testWindowSize=1000000"
+      - "--testAlgo=all"
+      - "--throughput_test_threshold=5000000000"
+    restart: always
+  vmsketch-2:
+    container_name: vmsketch-2
+    image: zeyingz/vmsketch-insert-throughput:v0.0.4
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker2
+    ports:
+      - 8582
+      - 8500
+      - 8501
+    command:
+      - "--testWindowSize=1000000"
+      - "--testAlgo=all"
+      - "--throughput_test_threshold=5000000000"
+    restart: always
+  vmsketch-3:
+    container_name: vmsketch-3
+    image: zeyingz/vmsketch-insert-throughput:v0.0.4
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker3
+    ports:
+      - 8582
+      - 8500
+      - 8501
+    command:
+      - "--testWindowSize=1000000"
+      - "--testAlgo=all"
+      - "--throughput_test_threshold=5000000000"
+    restart: always
+
+
+  # vminsert is ingestion frontend. It receives metrics pushed by vmagent,
+  # pre-process them and distributes across configured vmstorage shards.
+  vminsert:
+    container_name: vminsert
+    image: zeyingz/vminsert-insert-throughput:v0.0.1
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker2
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
       - "vmstorage-3"
+      - "vmsketch-1"
+      - "vmsketch-2"
+      - "vmsketch-3"
     command:
       - "--storageNode=vmstorage-1:8400"
       - "--storageNode=vmstorage-2:8400"
       - "--storageNode=vmstorage-3:8400"
+      - "--sketchNode=vmsketch-1:8500"
+      - "--sketchNode=vmsketch-2:8500"
+      - "--sketchNode=vmsketch-3:8500"
     ports:
       - 8480
     restart: always
