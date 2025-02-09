@@ -86,7 +86,7 @@ services:
   # where N is number of vmsketches (2 in this case).
   vmsketch-1:
     container_name: vmsketch-1
-    image: zeyingz/vmsketch-insert-throughput:v0.0.4
+    image: zeyingz/vmsketch-insert-throughput:v0.0.5
     deploy:
       placement:
         constraints: 
@@ -102,7 +102,7 @@ services:
     restart: always
   vmsketch-2:
     container_name: vmsketch-2
-    image: zeyingz/vmsketch-insert-throughput:v0.0.4
+    image: zeyingz/vmsketch-insert-throughput:v0.0.5
     deploy:
       placement:
         constraints: 
@@ -118,7 +118,7 @@ services:
     restart: always
   vmsketch-3:
     container_name: vmsketch-3
-    image: zeyingz/vmsketch-insert-throughput:v0.0.4
+    image: zeyingz/vmsketch-insert-throughput:v0.0.5
     deploy:
       placement:
         constraints: 

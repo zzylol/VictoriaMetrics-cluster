@@ -442,29 +442,45 @@ func (vs *VMSketches) AddRow(mn *storage.MetricNameNoTenant, t int64, value floa
 		return fmt.Errorf("failed to create metric name timeseries")
 	}
 
+	var wg sync.WaitGroup
+
 	if s.sketchInstances.ehkll != nil {
 		if s.oldestTimestamp == -1 {
 			s.oldestTimestamp = t
 		}
-		s.sketchInstances.ehkll.Update(t, value)
-		// logger.Infof("sketch addRow:%s, kll.s_count=%d", mn, s.sketchInstances.ehkll.s_count)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s.sketchInstances.ehkll.Update(t, value)
+			// logger.Infof("sketch addRow:%s, kll.s_count=%d", mn, s.sketchInstances.ehkll.s_count)
+		}()
 	}
 
 	if s.sketchInstances.sampling != nil {
 		if s.oldestTimestamp == -1 {
 			s.oldestTimestamp = t
 		}
-		// logger.Infof("sketch addRow:%s, %d, %f", mn, t, value)
-		s.sketchInstances.sampling.Insert(t, value)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			// logger.Infof("sketch addRow:%s, %d, %f", mn, t, value)
+			s.sketchInstances.sampling.Insert(t, value)
+		}()
 	}
 
 	if s.sketchInstances.ehuniv != nil {
 		if s.oldestTimestamp == -1 {
 			s.oldestTimestamp = t
 		}
-		// logger.Infof("sketch addRow: %s, %d, %f", mn, t, value)
-		s.sketchInstances.ehuniv.Update(t, value)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			// logger.Infof("sketch addRow: %s, %d, %f", mn, t, value)
+			s.sketchInstances.ehuniv.Update(t, value)
+		}()
 	}
+
+	wg.Wait()
 
 	return nil
 }
