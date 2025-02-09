@@ -181,6 +181,7 @@ Start stack in manager node
 sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-sketches-2-nodes.yml stackdemo
 
 sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-sketches-3-nodes.yml stackdemo
+
 ```
 
 ```
