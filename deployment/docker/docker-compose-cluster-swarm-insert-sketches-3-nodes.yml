@@ -20,7 +20,7 @@ services:
       - "--promscrape.config=/etc/prometheus/prometheus.yml"
       - "--remoteWrite.url=http://vminsert:8480/insert/0/prometheus/"
       - "--testSampleLength=1080000"
-      - "--testTimeseriesNum=80000"
+      - "--testTimeseriesNum=10000"
       - "--testInsertNodeNum=1"
     restart: always
  
@@ -43,7 +43,7 @@ services:
     command:
       - "--storageDataPath=/storage"
       - "--retentionPeriod=100y"
-      - "--throughput_test_threshold=20000000000"
+      - "--throughput_test_threshold=2500000000"
     restart: always
   vmstorage-2:
     container_name: vmstorage-2
@@ -61,7 +61,7 @@ services:
     command:
       - "--storageDataPath=/storage"
       - "--retentionPeriod=100y"
-      - "--throughput_test_threshold=20000000000"
+      - "--throughput_test_threshold=2500000000"
     restart: always
   vmstorage-3:
     container_name: vmstorage-3
@@ -79,7 +79,7 @@ services:
     command:
       - "--storageDataPath=/storage"
       - "--retentionPeriod=100y"
-      - "--throughput_test_threshold=20000000000"
+      - "--throughput_test_threshold=2500000000"
     restart: always
   
   # vmsketch shards. Each shard receives 1/N of all metrics sent to vminserts,
@@ -98,7 +98,7 @@ services:
     command:
       - "--testWindowSize=1000000"
       - "--testAlgo=all"
-      - "--throughput_test_threshold=20000000000"
+      - "--throughput_test_threshold=2500000000"
     restart: always
   vmsketch-2:
     container_name: vmsketch-2
@@ -114,7 +114,7 @@ services:
     command:
       - "--testWindowSize=1000000"
       - "--testAlgo=all"
-      - "--throughput_test_threshold=20000000000"
+      - "--throughput_test_threshold=2500000000"
     restart: always
   vmsketch-3:
     container_name: vmsketch-3
@@ -130,7 +130,7 @@ services:
     command:
       - "--testWindowSize=1000000"
       - "--testAlgo=all"
-      - "--throughput_test_threshold=20000000000"
+      - "--throughput_test_threshold=2500000000"
     restart: always
 
 
