@@ -24,7 +24,7 @@ scrape_configs:
     static_configs:
       - targets: ['vmsketch-1:8582', 'vmsketch-2:8582']
   - job_name: 'fake-exporter'
-    scrape_interval: 100ms
+    scrape_interval: 1s
     static_configs:
       - targets: ['172.17.0.1:10000', '172.17.0.1:10001', '172.17.0.1:10002', '172.17.0.1:10003',
             '172.17.0.1:10004', '172.17.0.1:10005', '172.17.0.1:10006', '172.17.0.1:10007',
