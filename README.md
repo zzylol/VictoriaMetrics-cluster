@@ -178,11 +178,13 @@ sudo docker node inspect self --pretty
 
 Start stack in manager node
 ```
+sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-sketches-1-node.yml stackdemo
 sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-sketches-2-nodes.yml stackdemo
-sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-sketches-4-nodes.yml stackdemo
+sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-sketches-3-nodes.yml stackdemo
 
+sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-original-1-node.yml stackdemo
 sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-original-2-nodes.yml stackdemo
-sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-original-4-nodes.yml stackdemo
+sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-original-3-nodes.yml stackdemo
 ```
 
 Show status
