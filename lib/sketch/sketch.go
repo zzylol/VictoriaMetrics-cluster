@@ -211,12 +211,12 @@ func (s *Sketch) DeleteSeries(qt *querytracer.Tracer, MetricNameRaws [][]byte, d
 }
 
 func (s *Sketch) SearchTimeSeriesCoverage(start, end int64, mn *storage.MetricNameNoTenant, funcName string, maxMetrics int) (*SketchResult, bool, error) {
-	sketchIns, lookup := s.sketchCache.LookupMetricNameFuncNamesTimeRange(mn, funcName, start, end)
+	sketchIns, lookup := s.sketchCache.LookupMetricNameFuncNamesTimeRange(mn, funcName, start, end-1000)
 	if sketchIns == nil {
-		if err := s.RegisterSingleMetricNameFuncName(mn, funcName, (end-start)*4, (end-start)/100*4); err != nil {
+		if err := s.RegisterSingleMetricNameFuncName(mn, funcName, int64(float64(end-start)*1.5), int64(float64(end-start)/100*1.5)); err != nil {
 			return nil, true, fmt.Errorf("failed to register metric name and function name with window")
 		}
-		sketchIns, lookup = s.sketchCache.LookupMetricNameFuncNamesTimeRange(mn, funcName, start, end)
+		sketchIns, lookup = s.sketchCache.LookupMetricNameFuncNamesTimeRange(mn, funcName, start, end-1000)
 	}
 
 	if sketchIns == nil {
@@ -245,9 +245,9 @@ func (s *Sketch) SearchAndEval(qt *querytracer.Tracer, MetricNameRaws [][]byte, 
 
 	funcName := GetFuncName(funcNameID)
 
-	logger.Infof("in SearchAndEval, funcNameID=%d, funcName=%s", funcNameID, funcName)
+	// logger.Infof("in SearchAndEval, funcNameID=%d, funcName=%s", funcNameID, funcName)
 	// logger.Infof("metricnames =%s", MetricNameRaws)
-	logger.Infof("sargs=%s", sargs)
+	// logger.Infof("sargs=%s", sargs)
 
 	qt = qt.NewChild("rollup %s() over %d series", funcName, len(MetricNameRaws))
 	defer qt.Done()

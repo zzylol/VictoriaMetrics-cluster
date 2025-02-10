@@ -799,7 +799,7 @@ func (sn *sketchNode) searchAndEvalOnConn(bc *handshake.BufferedConn, requestDat
 	var isCovered bool
 	isCovered_64, err := readUint64(bc)
 	isCovered = bool(isCovered_64 != 0)
-	logger.Infof("read isCovered=%d", isCovered)
+	// logger.Infof("read isCovered=%d", isCovered)
 	for {
 		buf, err = readBytes(buf[:0], bc, maxEvalResultSize)
 		if err != nil {
