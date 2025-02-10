@@ -20,7 +20,7 @@ services:
       - "--promscrape.config=/etc/prometheus/prometheus.yml"
       - "--remoteWrite.url=http://vminsert:8480/insert/0/prometheus/"
       - "--testSampleLength=1080000"
-      - "--testTimeseriesNum=40000"
+      - "--testTimeseriesNum=10000"
       - "--testInsertNodeNum=1"
     restart: always
  
@@ -43,7 +43,7 @@ services:
     command:
       - "--storageDataPath=/storage"
       - "--retentionPeriod=100y"
-      - "--throughput_test_threshold=15000000000"
+      - "--throughput_test_threshold=3750000000"
     restart: always
   vmstorage-2:
     container_name: vmstorage-2
@@ -61,7 +61,7 @@ services:
     command:
       - "--storageDataPath=/storage"
       - "--retentionPeriod=100y"
-      - "--throughput_test_threshold=15000000000"
+      - "--throughput_test_threshold=3750000000"
     restart: always
   
   

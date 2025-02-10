@@ -20,7 +20,7 @@ services:
       - "--promscrape.config=/etc/prometheus/prometheus.yml"
       - "--remoteWrite.url=http://vminsert:8480/insert/0/prometheus/"
       - "--testSampleLength=1080000"
-      - "--testTimeseriesNum=10000"
+      - "--testTimeseriesNum=80000"
       - "--testInsertNodeNum=1"
     restart: always
  
