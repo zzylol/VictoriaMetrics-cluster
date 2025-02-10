@@ -185,6 +185,8 @@ sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster
 ```
 
 ```
+sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-original-1-node.yml stackdemo
+
 sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-original-2-nodes.yml stackdemo
 
 sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-original-3-nodes.yml stackdemo
