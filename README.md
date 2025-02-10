@@ -190,6 +190,19 @@ sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster
 Show status
 ```
 sudo docker stack services stackdemo
+
+sudo docker service logs stackdemo_vmagent
+sudo docker service logs stackdemo_vminsert
+sudo docker service logs stackdemo_vmstorage-1
+sudo docker service logs stackdemo_vmstorage-2
+sudo docker service logs stackdemo_vmstorage-3
+sudo docker service logs stackdemo_vmselect-1
+sudo docker service logs stackdemo_vmselect-2
+sudo docker service logs stackdemo_vmselect-3
+sudo docker service logs stackdemo_vmsketch-1
+sudo docker service logs stackdemo_vmsketch-2
+sudo docker service logs stackdemo_vmsketch-3
+sudo docker service logs stackdemo_vmauth
 ```
 
 Debug not started cluster service
