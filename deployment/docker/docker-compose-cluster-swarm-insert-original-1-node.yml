@@ -1,0 +1,69 @@
+services:
+  #  Metrics collector.
+  #  It scrapes targets defined in --promscrape.config
+  #  And forward them to --remoteWrite.url
+  vmagent:
+    container_name: vmagent
+    image: zeyingz/vmagent-insert-throughput:v0.0.10
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker1
+    depends_on:
+      - "vminsert"
+    ports:
+      - 8429:8429
+    volumes:
+      - vmagentdata:/vmagentdata
+      - ./prometheus-cluster.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--promscrape.config=/etc/prometheus/prometheus.yml"
+      - "--remoteWrite.url=http://vminsert:8480/insert/0/prometheus/"
+      - "--testSampleLength=1080000"
+      - "--testTimeseriesNum=10000"
+      - "--testInsertNodeNum=1"
+    restart: always
+ 
+
+  # vmstorage shards. Each shard receives 1/N of all metrics sent to vminserts,
+  # where N is number of vmstorages (2 in this case).
+  vmstorage-1:
+    container_name: vmstorage-1
+    image: zeyingz/vmstorage-insert-throughput:v0.0.1
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker1
+    ports:
+      - 8482
+      - 8400
+      - 8401
+    volumes:
+      - strgdata-1:/storage
+    command:
+      - "--storageDataPath=/storage"
+      - "--retentionPeriod=100y"
+      - "--throughput_test_threshold=10000000000"
+    restart: always
+  
+  # vminsert is ingestion frontend. It receives metrics pushed by vmagent,
+  # pre-process them and distributes across configured vmstorage shards.
+  vminsert:
+    container_name: vminsert
+    image: victoriametrics/vminsert:v1.108.1-cluster 
+    deploy:
+      placement:
+        constraints: 
+          - node.labels.role == worker1
+    depends_on:
+      - "vmstorage-1"
+    command:
+      - "--storageNode=vmstorage-1:8400"
+    ports:
+      - 8480
+    restart: always
+ 
+volumes:
+  vmagentdata: {}
+  strgdata-1: {}
+  

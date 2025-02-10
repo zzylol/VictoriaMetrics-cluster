@@ -178,6 +178,8 @@ sudo docker node inspect self --pretty
 
 Start stack in manager node
 ```
+sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-sketches-1-node.yml stackdemo
+
 sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-sketches-2-nodes.yml stackdemo
 
 sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-sketches-3-nodes.yml stackdemo
@@ -185,6 +187,8 @@ sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster
 ```
 
 ```
+sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-original-1-node.yml stackdemo
+
 sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-original-2-nodes.yml stackdemo
 
 sudo docker stack deploy --compose-file deployment/docker/docker-compose-cluster-swarm-insert-original-3-nodes.yml stackdemo
