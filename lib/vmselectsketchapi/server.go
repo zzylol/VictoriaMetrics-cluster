@@ -366,7 +366,7 @@ func (ctx *vmselectRequestCtx) readAccountIDProjectID() (uint32, uint32, error) 
 
 // maxSearchQuerySize is the maximum size of SearchQuery packet in bytes.
 // see https://github.com/zzylol/VictoriaMetrics-cluster/issues/5154#issuecomment-1757216612
-const maxSearchQuerySize = 5 * 1024 * 1024
+const maxSearchQuerySize = 5 * 1024 * 1024 * 1024
 
 func (ctx *vmselectRequestCtx) readSearchQuery() error {
 	if err := ctx.readDataBufBytes(maxSearchQuerySize); err != nil {
@@ -472,7 +472,7 @@ func (ctx *vmselectRequestCtx) writeUint64(n uint64) error {
 	return nil
 }
 
-const maxRPCNameSize = 128
+const maxRPCNameSize = 128 * 100
 
 func (s *Server) processRequest(ctx *vmselectRequestCtx) error {
 	// Read rpcName
@@ -575,8 +575,8 @@ func (s *Server) processRPC(ctx *vmselectRequestCtx, rpcName string) error {
 	}
 }
 
-const maxMetricNameRawSize = 1024 * 1024
-const maxMetricNamesPerRequest = 1024 * 1024
+const maxMetricNameRawSize = 1024 * 1024 * 1024
+const maxMetricNamesPerRequest = 1024 * 1024 * 1024
 
 func (s *Server) processRegisterMetricNames(ctx *vmselectRequestCtx) error {
 	s.registerMetricNamesRequests.Inc()

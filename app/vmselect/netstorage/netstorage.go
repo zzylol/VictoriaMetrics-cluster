@@ -2922,7 +2922,7 @@ const maxMetricBlockSize = 1024 * 1024
 const maxErrorMessageSize = 1024 * 1024
 
 // maxEvalResultSize is the maximum size of evalResult received from vmsketch.
-const maxEvalResultSize = 1024 * 1024
+const maxEvalResultSize = 1024 * 1024 * 1024
 
 func (sn *storageNode) processSearchMetricNamesOnConn(bc *handshake.BufferedConn, requestData []byte) ([]string, error) {
 	// Send the requst to sn.

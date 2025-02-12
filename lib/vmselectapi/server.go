@@ -472,7 +472,7 @@ func (ctx *vmselectRequestCtx) writeUint64(n uint64) error {
 	return nil
 }
 
-const maxRPCNameSize = 128
+const maxRPCNameSize = 128 * 100
 
 func (s *Server) processRequest(ctx *vmselectRequestCtx) error {
 	// Read rpcName
@@ -583,8 +583,8 @@ func (s *Server) processRPC(ctx *vmselectRequestCtx, rpcName string) error {
 	}
 }
 
-const maxMetricNameRawSize = 1024 * 1024
-const maxMetricNamesPerRequest = 1024 * 1024
+const maxMetricNameRawSize = 1024 * 1024 * 1024
+const maxMetricNamesPerRequest = 1024 * 1024 * 1024
 
 func (s *Server) processRegisterMetricNames(ctx *vmselectRequestCtx) error {
 	s.registerMetricNamesRequests.Inc()
@@ -706,7 +706,7 @@ func (s *Server) processLabelNames(ctx *vmselectRequestCtx) error {
 	return nil
 }
 
-const maxLabelValueSize = 16 * 1024
+const maxLabelValueSize = 16 * 1024 * 1024
 
 func (s *Server) processLabelValues(ctx *vmselectRequestCtx) error {
 	s.labelValuesRequests.Inc()
