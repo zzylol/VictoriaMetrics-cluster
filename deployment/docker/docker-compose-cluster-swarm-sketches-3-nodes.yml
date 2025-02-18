@@ -143,7 +143,7 @@ services:
   # vmselect collects results from configured `--storageNode` shards.
   vmselect-1:
     container_name: vmselect-1
-    image: zeyingz/vmselect:v0.0.20
+    image: zeyingz/vmselect:v0.0.23
     deploy:
       placement:
         constraints: 
@@ -170,7 +170,7 @@ services:
     restart: always
   vmselect-2:
     container_name: vmselect-2
-    image: zeyingz/vmselect:v0.0.20
+    image: zeyingz/vmselect:v0.0.23
     deploy:
       placement:
         constraints: 
@@ -197,7 +197,7 @@ services:
     restart: always
   vmselect-3:
     container_name: vmselect-3
-    image: zeyingz/vmselect:v0.0.20
+    image: zeyingz/vmselect:v0.0.23
     deploy:
       placement:
         constraints: 
