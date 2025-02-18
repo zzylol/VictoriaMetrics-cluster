@@ -208,7 +208,7 @@ func (s *UniformSampling) Cover(t1, t2 int64) bool {
 		s.mutex.RUnlock()
 		return false
 	}
-	isCovered := s.Cur_time >= t2 && s.Cur_time-s.Time_window_size <= t1
+	isCovered := s.Cur_time-s.Time_window_size/100 >= t2 // && s.Cur_time-s.Time_window_size <= t1
 
 	s.mutex.RUnlock()
 	return isCovered

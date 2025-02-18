@@ -211,12 +211,12 @@ func (s *Sketch) DeleteSeries(qt *querytracer.Tracer, MetricNameRaws [][]byte, d
 }
 
 func (s *Sketch) SearchTimeSeriesCoverage(start, end int64, mn *storage.MetricNameNoTenant, funcName string, maxMetrics int) (*SketchResult, bool, error) {
-	sketchIns, lookup := s.sketchCache.LookupMetricNameFuncNamesTimeRange(mn, funcName, start, end-1000)
+	sketchIns, lookup := s.sketchCache.LookupMetricNameFuncNamesTimeRange(mn, funcName, start, end)
 	if sketchIns == nil {
-		if err := s.RegisterSingleMetricNameFuncName(mn, funcName, int64(float64(end-start)*1.5), int64(float64(end-start)/100*1.5)); err != nil {
+		if err := s.RegisterSingleMetricNameFuncName(mn, funcName, int64(float64(end-start)*3), int64(float64(end-start)/100*3)); err != nil {
 			return nil, true, fmt.Errorf("failed to register metric name and function name with window")
 		}
-		sketchIns, lookup = s.sketchCache.LookupMetricNameFuncNamesTimeRange(mn, funcName, start, end-1000)
+		sketchIns, lookup = s.sketchCache.LookupMetricNameFuncNamesTimeRange(mn, funcName, start, end)
 	}
 
 	if sketchIns == nil {
