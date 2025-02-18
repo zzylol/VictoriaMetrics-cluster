@@ -153,5 +153,4 @@ services:
 volumes:
   vmagentdata: {}
   strgdata-1: {}
-  strgdata-2: {}
   grafanadata: {}
