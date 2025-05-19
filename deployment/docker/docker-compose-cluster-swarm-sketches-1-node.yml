@@ -62,7 +62,7 @@ services:
   # where N is number of vmsketches (2 in this case).
   vmsketch-1:
     container_name: vmsketch-1
-    image: zeyingz/vmsketch:v0.0.19
+    image: zeyingz/vmsketch:v0.1.0
     deploy:
       placement:
         constraints: 
@@ -77,7 +77,7 @@ services:
   # pre-process them and distributes across configured vmstorage shards.
   vminsert:
     container_name: vminsert
-    image: zeyingz/vminsert:v0.0.17
+    image: zeyingz/vminsert:v0.1.0
     deploy:
       placement:
         constraints: 
@@ -96,7 +96,7 @@ services:
   # vmselect collects results from configured `--storageNode` shards.
   vmselect-1:
     container_name: vmselect-1
-    image: zeyingz/vmselect:v0.0.20
+    image: zeyingz/vmselect:v0.1.0
     deploy:
       placement:
         constraints: 
