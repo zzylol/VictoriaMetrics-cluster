@@ -136,7 +136,7 @@ func funcVMStdvarOverTime(ctx context.Context, sketchIns *SketchInstances, c []f
 
 func funcVMEntropyOverTime(ctx context.Context, sketchIns *SketchInstances, c []float64, t1, t2, t int64) float64 {
 
-	merged_univ, m, n, err := sketchIns.ehuniv.QueryIntervalMergeUniv(t-t2, t-t1, t)
+	merged_univ, m, n, err := sketchIns.ehuniv.QueryIntervalMergeUniv(t1, t2, t)
 	if err != nil {
 		return 0
 	}
@@ -163,7 +163,7 @@ func calc_entropy_map(m *map[float64]int64, n float64) float64 {
 
 func funcVMCardOverTime(ctx context.Context, sketchIns *SketchInstances, c []float64, t1, t2, t int64) float64 {
 
-	merged_univ, m, _, err := sketchIns.ehuniv.QueryIntervalMergeUniv(t-t2, t-t1, t)
+	merged_univ, m, _, err := sketchIns.ehuniv.QueryIntervalMergeUniv(t1, t2, t)
 	if err != nil {
 		return 0
 	}
@@ -178,7 +178,7 @@ func funcVMCardOverTime(ctx context.Context, sketchIns *SketchInstances, c []flo
 
 func funcVML1OverTime(ctx context.Context, sketchIns *SketchInstances, c []float64, t1, t2, t int64) float64 {
 
-	merged_univ, m, _, err := sketchIns.ehuniv.QueryIntervalMergeUniv(t-t2, t-t1, t)
+	merged_univ, m, _, err := sketchIns.ehuniv.QueryIntervalMergeUniv(t1, t2, t)
 	if err != nil {
 		return 0
 	}
@@ -194,7 +194,7 @@ func funcVML1OverTime(ctx context.Context, sketchIns *SketchInstances, c []float
 
 func funcVML2OverTime(ctx context.Context, sketchIns *SketchInstances, c []float64, t1, t2, t int64) float64 {
 
-	merged_univ, m, _, err := sketchIns.ehuniv.QueryIntervalMergeUniv(t-t2, t-t1, t)
+	merged_univ, m, _, err := sketchIns.ehuniv.QueryIntervalMergeUniv(t1, t2, t)
 	if err != nil {
 		return 0
 	}
